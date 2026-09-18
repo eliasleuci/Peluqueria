@@ -1,0 +1,55 @@
+
+[functions.create-peluquero-login]
+enabled = true
+verify_jwt = false
+import_map = "./functions/create-peluquero-login/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/create-peluquero-login/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/create-peluquero-login/*.html" ]
+
+[functions.create-salon]
+enabled = true
+verify_jwt = false
+import_map = "./functions/create-salon/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/create-salon/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/create-salon/*.html" ]
+
+[functions.disable-peluquero-login]
+enabled = true
+verify_jwt = false
+import_map = "./functions/disable-peluquero-login/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/disable-peluquero-login/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/disable-peluquero-login/*.html" ]
+
+[functions.toggle-salon-status]
+enabled = true
+verify_jwt = false
+import_map = "./functions/toggle-salon-status/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/toggle-salon-status/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/toggle-salon-status/*.html" ]
+
+[functions.delete-salon]
+enabled = true
+verify_jwt = false
+import_map = "./functions/delete-salon/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/delete-salon/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/delete-salon/*.html" ]

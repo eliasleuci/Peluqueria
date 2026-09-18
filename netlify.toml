@@ -1,0 +1,11 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# Sin esto, recargar la página en cualquier ruta que no sea "/" (ej. /dashboard, /peluqueros)
+# devuelve 404, porque Netlify por defecto busca un archivo físico con ese nombre.
+# Esta regla redirige todo a index.html y deja que react-router decida qué mostrar.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
