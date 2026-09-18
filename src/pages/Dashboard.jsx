@@ -89,7 +89,7 @@ export default function Dashboard() {
                     <div className="hint">{r.cantidad} cortes</div>
                   </div>
                 </div>
-                <div style={{ fontWeight: 700, color: 'var(--gold)' }}>{formatCurrency(r.monto)}</div>
+                <div style={{ fontWeight: 700, color: 'var(--accent)' }}>{formatCurrency(r.monto)}</div>
               </div>
             ))}
           </div>

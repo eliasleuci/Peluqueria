@@ -1,17 +1,17 @@
 :root {
-  --bg: #242a42;
-  --surface: #2d3454;
-  --surface-elevated: #383f65;
-  --gold: #e8c97a;
-  --gold-hover: #f0d98a;
-  --text: #f5f4ef;
-  --text-secondary: #a7a4c4;
-  --green: #3ddc84;
-  --blue: #60a5fa;
-  --red: #f87171;
-  --yellow: #fbbf24;
-  --border: rgba(255, 255, 255, 0.12);
-  --input-border: rgba(255, 255, 255, 0.18);
+  --bg: #f4ede1;
+  --surface: #ffffff;
+  --surface-elevated: #f2ece0;
+  --accent: #b3382c;
+  --accent-hover: #c94a3d;
+  --text: #211a14;
+  --text-secondary: #7a6f60;
+  --green: #1f7a4c;
+  --blue: #2f4d6b;
+  --red: #9c3a2e;
+  --yellow: #a1701f;
+  --border: rgba(33, 26, 20, 0.1);
+  --input-border: rgba(33, 26, 20, 0.18);
   --radius: 12px;
   --sidebar-width: 220px;
 }
@@ -63,7 +63,7 @@ textarea {
   height: 8px;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--surface-elevated);
+  background: rgba(122, 111, 96, 0.35);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-track {
@@ -96,7 +96,7 @@ textarea {
   padding: 8px 12px 24px;
   font-size: 18px;
   font-weight: 700;
-  color: var(--gold);
+  color: var(--accent);
 }
 
 .brand-text {
@@ -108,7 +108,7 @@ textarea {
 .brand-name {
   font-size: 17px;
   font-weight: 700;
-  color: var(--gold);
+  color: var(--accent);
   letter-spacing: 0.03em;
 }
 
@@ -151,7 +151,7 @@ textarea {
 
 .sidebar-link.active {
   background: var(--surface-elevated);
-  color: var(--gold);
+  color: var(--accent);
 }
 
 .sidebar-link .icon {
@@ -176,51 +176,9 @@ textarea {
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
-  background: rgba(36, 42, 66, 0.85);
+  background: rgba(244, 237, 225, 0.85);
   backdrop-filter: blur(8px);
   z-index: 10;
-}
-
-/* --- Standalone (team-only) view --- */
-.standalone-shell {
-  min-height: 100vh;
-  background: var(--bg);
-}
-
-.standalone-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px 28px;
-  border-bottom: 1px solid var(--border);
-  position: sticky;
-  top: 0;
-  background: rgba(36, 42, 66, 0.85);
-  backdrop-filter: blur(8px);
-  z-index: 10;
-}
-
-.standalone-mark {
-  font-size: 24px;
-  line-height: 1;
-}
-
-.standalone-brand {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.2;
-}
-
-.standalone-name {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--gold);
-  letter-spacing: 0.03em;
-}
-
-.standalone-tagline {
-  font-size: 12px;
-  color: var(--text-secondary);
 }
 
 .topbar h1 {
@@ -266,7 +224,7 @@ textarea {
 input:focus,
 select:focus,
 textarea:focus {
-  border-color: var(--gold);
+  border-color: var(--accent);
 }
 
 textarea {
@@ -290,11 +248,11 @@ textarea {
 }
 
 .btn-primary {
-  background: var(--gold);
-  color: #0f0f1a;
+  background: var(--accent);
+  color: #fff;
 }
 .btn-primary:hover {
-  background: var(--gold-hover);
+  background: var(--accent-hover);
 }
 .btn-primary:disabled {
   opacity: 0.5;
@@ -303,11 +261,11 @@ textarea {
 
 .btn-secondary {
   background: transparent;
-  border-color: var(--gold);
-  color: var(--gold);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 .btn-secondary:hover {
-  background: rgba(232, 201, 122, 0.08);
+  background: rgba(179, 56, 44, 0.08);
 }
 
 .btn-danger {
@@ -316,7 +274,7 @@ textarea {
   color: var(--red);
 }
 .btn-danger:hover {
-  background: rgba(248, 113, 113, 0.08);
+  background: rgba(156, 58, 46, 0.08);
 }
 
 .btn-ghost {
@@ -352,9 +310,9 @@ textarea {
 }
 
 .toggle-btn.active {
-  border-color: var(--gold);
-  background: rgba(232, 201, 122, 0.12);
-  color: var(--gold);
+  border-color: var(--accent);
+  background: rgba(179, 56, 44, 0.1);
+  color: var(--accent);
 }
 
 /* --- Cards --- */
@@ -364,6 +322,7 @@ textarea {
   border-radius: var(--radius);
   padding: 20px;
   min-width: 0;
+  box-shadow: 0 1px 2px rgba(33, 26, 20, 0.04), 0 8px 20px rgba(33, 26, 20, 0.05);
 }
 
 .card-title {
@@ -452,27 +411,27 @@ textarea {
 }
 
 .badge-green {
-  background: rgba(61, 220, 132, 0.15);
+  background: rgba(31, 122, 76, 0.13);
   color: var(--green);
 }
 .badge-blue {
-  background: rgba(96, 165, 250, 0.15);
+  background: rgba(47, 77, 107, 0.13);
   color: var(--blue);
 }
 .badge-red {
-  background: rgba(248, 113, 113, 0.15);
+  background: rgba(156, 58, 46, 0.13);
   color: var(--red);
 }
 .badge-yellow {
-  background: rgba(251, 191, 36, 0.15);
+  background: rgba(161, 112, 31, 0.13);
   color: var(--yellow);
 }
-.badge-gold {
-  background: rgba(232, 201, 122, 0.15);
-  color: var(--gold);
+.badge-accent {
+  background: rgba(179, 56, 44, 0.13);
+  color: var(--accent);
 }
 .badge-gray {
-  background: rgba(136, 136, 168, 0.15);
+  background: rgba(122, 111, 96, 0.14);
   color: var(--text-secondary);
 }
 
@@ -483,7 +442,7 @@ textarea {
   justify-content: center;
   border-radius: 999px;
   font-weight: 700;
-  color: #0f0f1a;
+  color: #211a14;
   flex-shrink: 0;
 }
 
@@ -585,7 +544,7 @@ tr:last-child td {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(36, 42, 66, 0.7);
+  background: rgba(33, 26, 20, 0.45);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -603,6 +562,7 @@ tr:last-child td {
   max-width: 480px;
   max-height: 90vh;
   overflow-y: auto;
+  box-shadow: 0 20px 48px rgba(33, 26, 20, 0.22);
 }
 
 .modal-header {
@@ -648,15 +608,15 @@ tr:last-child td {
 }
 
 .toast {
-  background: var(--surface-elevated);
+  background: var(--surface);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--gold);
+  border-left: 3px solid var(--accent);
   color: var(--text);
   padding: 14px 18px;
   border-radius: 9px;
   font-size: 14px;
   font-weight: 500;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 12px 28px rgba(33, 26, 20, 0.18);
   animation: slide-in 0.2s ease;
   min-width: 220px;
 }
@@ -680,7 +640,7 @@ tr:last-child td {
 .drawer-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(36, 42, 66, 0.6);
+  background: rgba(33, 26, 20, 0.4);
   backdrop-filter: blur(3px);
   z-index: 100;
   display: flex;
@@ -695,6 +655,7 @@ tr:last-child td {
   height: 100%;
   overflow-y: auto;
   padding: 24px;
+  box-shadow: -16px 0 36px rgba(33, 26, 20, 0.15);
   animation: drawer-in 0.2s ease;
 }
 
@@ -731,7 +692,7 @@ tr:last-child td {
 
 .progress-fill {
   height: 100%;
-  background: var(--gold);
+  background: var(--accent);
   border-radius: 999px;
   transition: width 0.3s ease;
 }
@@ -762,8 +723,8 @@ tr:last-child td {
 }
 
 .tab-btn.active {
-  color: var(--gold);
-  border-bottom-color: var(--gold);
+  color: var(--accent);
+  border-bottom-color: var(--accent);
 }
 
 .section-header {
@@ -779,8 +740,8 @@ tr:last-child td {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: rgba(251, 191, 36, 0.12);
-  border: 1px solid rgba(251, 191, 36, 0.35);
+  background: rgba(161, 112, 31, 0.12);
+  border: 1px solid rgba(161, 112, 31, 0.3);
   color: var(--yellow);
   padding: 12px 16px;
   border-radius: 9px;
@@ -803,13 +764,14 @@ tr:last-child td {
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  background: var(--surface-elevated);
+  background: var(--surface);
   border: 1px solid var(--input-border);
   border-radius: 8px;
   overflow: hidden;
   z-index: 20;
   max-height: 180px;
   overflow-y: auto;
+  box-shadow: 0 12px 28px rgba(33, 26, 20, 0.14);
 }
 
 .autocomplete-item {
@@ -819,8 +781,8 @@ tr:last-child td {
 }
 
 .autocomplete-item:hover {
-  background: rgba(232, 201, 122, 0.12);
-  color: var(--gold);
+  background: rgba(179, 56, 44, 0.1);
+  color: var(--accent);
 }
 
 .fab {
@@ -830,12 +792,12 @@ tr:last-child td {
   width: 54px;
   height: 54px;
   border-radius: 999px;
-  background: var(--gold);
-  color: #0f0f1a;
+  background: var(--accent);
+  color: #fff;
   font-size: 26px;
   font-weight: 700;
   border: none;
-  box-shadow: 0 8px 24px rgba(232, 201, 122, 0.35);
+  box-shadow: 0 10px 24px rgba(33, 26, 20, 0.28);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -843,7 +805,7 @@ tr:last-child td {
 }
 
 .fab:hover {
-  background: var(--gold-hover);
+  background: var(--accent-hover);
 }
 
 .hidden-mobile {
@@ -858,6 +820,7 @@ tr:last-child td {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 14px 16px;
+  box-shadow: 0 1px 2px rgba(33, 26, 20, 0.04);
 }
 
 .text-secondary {
@@ -931,7 +894,7 @@ tr:last-child td {
     border-radius: 8px;
   }
   .bottom-nav-item.active {
-    color: var(--gold);
+    color: var(--accent);
   }
   .bottom-nav-item .icon {
     font-size: 18px;

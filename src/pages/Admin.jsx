@@ -204,7 +204,7 @@ export default function Admin() {
             </div>
             <div className="field">
               <label>Contraseña provisoria</label>
-              <input readOnly value={credenciales.password} style={{ color: 'var(--gold)', fontWeight: 700 }} />
+              <input readOnly value={credenciales.password} style={{ color: 'var(--accent)', fontWeight: 700 }} />
             </div>
           </div>
         </Modal>

@@ -153,7 +153,7 @@ export default function RegistrarCorte() {
           </div>
         </div>
         <p className="hint">
-          Precio final: <strong style={{ color: 'var(--gold)' }}>{formatCurrency(precioFinal)}</strong>
+          Precio final: <strong style={{ color: 'var(--accent)' }}>{formatCurrency(precioFinal)}</strong>
         </p>
 
         <div className="field">
