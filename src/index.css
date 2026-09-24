@@ -911,3 +911,10 @@ tr:last-child td {
     min-width: 0;
   }
 }
+
+input[readonly] {
+  background: transparent;
+  border-style: dashed;
+  color: var(--text-secondary);
+  cursor: default;
+}

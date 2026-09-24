@@ -1,19 +1,16 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { toDateKey, nowTimeKey, formatCurrency } from '../utils/format';
 
-function emptyForm(localId, peluqueroId) {
+function emptyForm(peluqueroId) {
   return {
-    localId,
     fecha: toDateKey(new Date()),
     peluqueroId: peluqueroId ?? '',
     servicioId: '',
     precio: '',
-    descuento: 0,
     pago: 'efectivo',
-    notas: '',
   };
 }
 
@@ -22,22 +19,18 @@ export default function RegistrarCorte() {
   const { role, profile } = useAuth();
   const { showToast } = useToast();
   const esPeluquero = role === 'PELUQUERO';
+  const miPeluqueroId = esPeluquero ? profile?.peluqueroId ?? '' : '';
 
-  const localesActivos = data.locales.filter((l) => l.activo);
-  const initialLocal = activeLocal === 'all' ? localesActivos[0]?.id ?? '' : activeLocal;
-  const initialPeluquero = esPeluquero ? profile?.peluqueroId ?? '' : '';
-
-  const [form, setForm] = useState(() => emptyForm(initialLocal, initialPeluquero));
+  const [form, setForm] = useState(() => emptyForm(miPeluqueroId));
   const [errors, setErrors] = useState({});
 
-  const peluquerosDelLocal = data.peluqueros.filter((p) => p.activo && String(p.localId) === String(form.localId));
+  const peluquerosActivos = data.peluqueros.filter(
+    (p) => p.activo && (activeLocal === 'all' || String(p.localId) === String(activeLocal)),
+  );
   const serviciosActivos = data.servicios.filter((s) => s.activo);
-
-  const precioFinal = useMemo(() => {
-    const base = Number(form.precio) || 0;
-    const desc = Number(form.descuento) || 0;
-    return base - base * (desc / 100);
-  }, [form.precio, form.descuento]);
+  const peluquero = data.peluqueros.find((p) => p.id === form.peluqueroId);
+  const local = data.locales.find((l) => l.id === peluquero?.localId);
+  const precio = Number(form.precio) || 0;
 
   function update(patch) {
     setForm((prev) => ({ ...prev, ...patch }));
@@ -50,11 +43,11 @@ export default function RegistrarCorte() {
 
   function validate() {
     const e = {};
-    if (!form.localId) e.localId = true;
     if (!form.fecha) e.fecha = true;
     if (!form.peluqueroId) e.peluqueroId = true;
+    if (form.peluqueroId && !local) e.local = true;
     if (!form.servicioId) e.servicioId = true;
-    if (!form.precio || Number(form.precio) <= 0) e.precio = true;
+    if (precio <= 0) e.precio = true;
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -64,55 +57,55 @@ export default function RegistrarCorte() {
     if (!validate()) return;
     try {
       await addCorte({
-        localId: form.localId,
+        localId: local.id,
         fecha: form.fecha,
         hora: nowTimeKey(),
         peluqueroId: form.peluqueroId,
         servicioId: form.servicioId,
-        precio: Number(form.precio),
-        descuento: Number(form.descuento) || 0,
-        monto: precioFinal,
+        precio,
+        descuento: 0,
+        monto: precio,
         pago: form.pago,
-        notas: form.notas,
+        notas: '',
       });
-      showToast(`✓ Corte registrado — ${formatCurrency(precioFinal)}`);
-      setForm(emptyForm(form.localId, esPeluquero ? initialPeluquero : form.peluqueroId));
+      showToast(`✓ Corte registrado — ${formatCurrency(precio)}`);
+      setForm(emptyForm(esPeluquero ? miPeluqueroId : form.peluqueroId));
     } catch (err) {
       showToast(`Error al guardar: ${err.message ?? err}`, 'error');
     }
   }
+
+  const required = <span style={{ color: 'var(--red)' }}>*</span>;
 
   return (
     <div className="card" style={{ maxWidth: 640, margin: '0 auto' }}>
       <form className="stack-gap" onSubmit={handleSubmit}>
         <div className="grid grid-2">
           <div className="field">
-            <label>Local</label>
-            <select
-              value={form.localId}
-              onChange={(e) => update({ localId: e.target.value, peluqueroId: esPeluquero ? form.peluqueroId : '' })}
-            >
-              {localesActivos.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
-          {!esPeluquero && (
-            <div className="field">
-              <label>Peluquero {errors.peluqueroId && <span style={{ color: 'var(--red)' }}>*</span>}</label>
+            <label>Peluquero {errors.peluqueroId && required}</label>
+            {esPeluquero ? (
+              <input readOnly value={peluquero?.nombre ?? profile?.nombre ?? ''} />
+            ) : (
               <select value={form.peluqueroId} onChange={(e) => update({ peluqueroId: e.target.value })}>
                 <option value="">Seleccionar…</option>
-                {peluquerosDelLocal.map((p) => (
+                {peluquerosActivos.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.nombre}
                   </option>
                 ))}
               </select>
-            </div>
-          )}
+            )}
+          </div>
+          <div className="field">
+            <label>Local</label>
+            <input readOnly value={local?.nombre ?? ''} placeholder={esPeluquero ? '' : 'Según el peluquero'} />
+          </div>
         </div>
+        {errors.local && (
+          <p style={{ color: 'var(--red)', fontSize: 13 }}>
+            Este peluquero no tiene una sucursal asignada. Asignale una desde Peluqueros.
+          </p>
+        )}
 
         <div className="field">
           <label>Fecha</label>
@@ -120,7 +113,7 @@ export default function RegistrarCorte() {
         </div>
 
         <div className="field">
-          <label>Servicio {errors.servicioId && <span style={{ color: 'var(--red)' }}>*</span>}</label>
+          <label>Servicio {errors.servicioId && required}</label>
           <select value={form.servicioId} onChange={(e) => handleServicioChange(e.target.value)}>
             <option value="">Seleccionar…</option>
             {serviciosActivos.map((s) => (
@@ -131,30 +124,10 @@ export default function RegistrarCorte() {
           </select>
         </div>
 
-        <div className="grid grid-2">
-          <div className="field">
-            <label>Precio {errors.precio && <span style={{ color: 'var(--red)' }}>*</span>}</label>
-            <input
-              type="number"
-              min="0"
-              value={form.precio}
-              onChange={(e) => update({ precio: e.target.value })}
-            />
-          </div>
-          <div className="field">
-            <label>Descuento %</label>
-            <input
-              type="number"
-              min="0"
-              max="100"
-              value={form.descuento}
-              onChange={(e) => update({ descuento: e.target.value })}
-            />
-          </div>
+        <div className="field">
+          <label>Precio {errors.precio && required}</label>
+          <input type="number" min="0" value={form.precio} onChange={(e) => update({ precio: e.target.value })} />
         </div>
-        <p className="hint">
-          Precio final: <strong style={{ color: 'var(--accent)' }}>{formatCurrency(precioFinal)}</strong>
-        </p>
 
         <div className="field">
           <label>Forma de pago</label>
@@ -176,17 +149,8 @@ export default function RegistrarCorte() {
           </div>
         </div>
 
-        <div className="field">
-          <label>Notas (opcional)</label>
-          <textarea
-            placeholder="Ej: pidió fade corto"
-            value={form.notas}
-            onChange={(e) => update({ notas: e.target.value })}
-          />
-        </div>
-
         <button type="submit" className="btn btn-primary" style={{ marginTop: 8 }}>
-          Guardar corte
+          Guardar corte · {formatCurrency(precio)}
         </button>
       </form>
     </div>
