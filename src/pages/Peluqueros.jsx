@@ -7,7 +7,7 @@ import { formatCurrency, formatDate } from '../utils/format';
 import { cortesOfMonth, currentMonthKey, sumMonto } from '../utils/stats';
 
 function emptyPeluquero(localId) {
-  return { nombre: '', localId, comision: 40, fechaIngreso: '', telefono: '', email: '' };
+  return { nombre: '', localId, comision: 40, comisionProducto: 0, fechaIngreso: '', horaEntrada: '', telefono: '', email: '' };
 }
 
 export default function Peluqueros() {
@@ -22,6 +22,18 @@ export default function Peluqueros() {
   const [credenciales, setCredenciales] = useState(null);
   const [accesoEmail, setAccesoEmail] = useState('');
   const [creandoAcceso, setCreandoAcceso] = useState(false);
+  const [copiado, setCopiado] = useState('');
+
+  async function copiar(texto, key) {
+    try {
+      await navigator.clipboard.writeText(texto);
+      setCopiado(key);
+      showToast('✓ Copiado');
+      setTimeout(() => setCopiado((c) => (c === key ? '' : c)), 1500);
+    } catch {
+      showToast('No se pudo copiar. Copialo a mano.', 'error');
+    }
+  }
 
   const peluquerosActivos = data.peluqueros.filter((p) => p.activo);
   const scopedPeluqueros =
@@ -60,7 +72,9 @@ export default function Peluqueros() {
       nombre: peluquero.nombre,
       localId: String(peluquero.localId),
       comision: peluquero.comision,
+      comisionProducto: peluquero.comisionProducto ?? 0,
       fechaIngreso: peluquero.fechaIngreso || '',
+      horaEntrada: peluquero.horaEntrada || '',
       telefono: peluquero.telefono || '',
     });
     setShowModal(true);
@@ -73,7 +87,9 @@ export default function Peluqueros() {
       nombre: form.nombre.trim(),
       localId: form.localId,
       comision: Number(form.comision) || 0,
+      comisionProducto: Number(form.comisionProducto) || 0,
       fechaIngreso: form.fechaIngreso,
+      horaEntrada: form.horaEntrada,
       telefono: form.telefono,
     };
     try {
@@ -228,7 +244,7 @@ export default function Peluqueros() {
             </div>
             <div className="grid grid-2">
               <div className="field">
-                <label>Comisión (%)</label>
+                <label>Comisión cortes (%)</label>
                 <input
                   type="number"
                   value={form.comision}
@@ -236,13 +252,29 @@ export default function Peluqueros() {
                 />
               </div>
               <div className="field">
-                <label>Fecha de ingreso</label>
+                <label>Comisión productos (%)</label>
                 <input
-                  type="date"
-                  value={form.fechaIngreso}
-                  onChange={(e) => setForm({ ...form, fechaIngreso: e.target.value })}
+                  type="number"
+                  value={form.comisionProducto}
+                  onChange={(e) => setForm({ ...form, comisionProducto: e.target.value })}
                 />
               </div>
+            </div>
+            <div className="field">
+              <label>Fecha de ingreso</label>
+              <input
+                type="date"
+                value={form.fechaIngreso}
+                onChange={(e) => setForm({ ...form, fechaIngreso: e.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label>Hora de entrada (para el control de asistencia)</label>
+              <input
+                type="time"
+                value={form.horaEntrada}
+                onChange={(e) => setForm({ ...form, horaEntrada: e.target.value })}
+              />
             </div>
             <div className="field">
               <label>Teléfono (opcional)</label>
@@ -265,24 +297,55 @@ export default function Peluqueros() {
       {credenciales && (
         <Modal
           title="✓ Acceso creado"
+          closeOnOverlay={false}
           onClose={() => setCredenciales(null)}
           footer={
-            <button className="btn btn-primary" onClick={() => setCredenciales(null)}>
-              Listo
-            </button>
+            <>
+              <button
+                className="btn btn-primary"
+                onClick={() =>
+                  copiar(
+                    `Acceso a tu cuenta:\nUsuario: ${credenciales.email}\nContraseña: ${credenciales.password}\nEntrá desde: ${window.location.origin}`,
+                    'todo'
+                  )
+                }
+              >
+                {copiado === 'todo' ? '✓ Copiado' : 'Copiar para enviar'}
+              </button>
+              <button className="btn btn-ghost" onClick={() => setCredenciales(null)}>
+                Listo
+              </button>
+            </>
           }
         >
+          <div className="alert-banner" style={{ marginBottom: 14 }}>
+            ⚠️ Guardá o copiá estos datos ahora. La contraseña no se vuelve a mostrar.
+          </div>
           <p className="hint" style={{ marginBottom: 12 }}>
-            Pasale estos datos al peluquero para que entre desde su celular. Esta contraseña no se vuelve a mostrar.
+            Pasáselos al peluquero para que entre desde su celular.
           </p>
-          <div className="stack-gap" style={{ gap: 10 }}>
+          <div className="stack-gap" style={{ gap: 12 }}>
             <div className="field">
               <label>Usuario</label>
-              <input readOnly value={credenciales.email} />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input readOnly value={credenciales.email} style={{ flex: 1 }} />
+                <button className="btn btn-secondary btn-sm" onClick={() => copiar(credenciales.email, 'email')}>
+                  {copiado === 'email' ? '✓' : 'Copiar'}
+                </button>
+              </div>
             </div>
             <div className="field">
               <label>Contraseña provisoria</label>
-              <input readOnly value={credenciales.password} style={{ color: 'var(--accent)', fontWeight: 700 }} />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  readOnly
+                  value={credenciales.password}
+                  style={{ flex: 1, color: 'var(--accent)', fontWeight: 700, fontFamily: 'monospace' }}
+                />
+                <button className="btn btn-secondary btn-sm" onClick={() => copiar(credenciales.password, 'pass')}>
+                  {copiado === 'pass' ? '✓' : 'Copiar'}
+                </button>
+              </div>
             </div>
           </div>
         </Modal>

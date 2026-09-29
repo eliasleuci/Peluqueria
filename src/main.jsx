@@ -9,10 +9,14 @@ import RestablecerClave from './pages/RestablecerClave.jsx';
 import Admin from './pages/Admin.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import RegistrarCorte from './pages/RegistrarCorte.jsx';
+import RegistrarVenta from './pages/RegistrarVenta.jsx';
 import Agenda from './pages/Agenda.jsx';
 import Peluqueros from './pages/Peluqueros.jsx';
 import Inventario from './pages/Inventario.jsx';
 import Configuracion from './pages/Configuracion.jsx';
+import MiHorario from './pages/MiHorario.jsx';
+import MisFinanzas from './pages/MisFinanzas.jsx';
+import Asistencias from './pages/Asistencias.jsx';
 import { AppProvider } from './context/AppContext.jsx';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { ToastProvider } from './context/ToastContext.jsx';
@@ -35,6 +39,9 @@ createRoot(document.getElementById('root')).render(
               <Route path="/login" element={<Login />} />
               <Route path="/olvide-clave" element={<OlvideClave />} />
               <Route path="/restablecer-clave" element={<RestablecerClave />} />
+              {/* URL de instalación por cliente (branding PWA). El ícono ya se capturó al instalar
+                  vía la Edge Function; en runtime solo llevamos al flujo normal. */}
+              <Route path="/p/:slug" element={<Navigate to="/" replace />} />
 
               <Route
                 path="/admin"
@@ -72,10 +79,42 @@ createRoot(document.getElementById('root')).render(
                   }
                 />
                 <Route
+                  path="/registrar-venta"
+                  element={
+                    <RequireRole routeKey="registrarventa">
+                      <RegistrarVenta />
+                    </RequireRole>
+                  }
+                />
+                <Route
+                  path="/mi-horario"
+                  element={
+                    <RequireRole routeKey="mihorario">
+                      <MiHorario />
+                    </RequireRole>
+                  }
+                />
+                <Route
+                  path="/mis-finanzas"
+                  element={
+                    <RequireRole routeKey="misfinanzas">
+                      <MisFinanzas />
+                    </RequireRole>
+                  }
+                />
+                <Route
                   path="/agenda"
                   element={
                     <RequireRole routeKey="agenda">
                       <Agenda />
+                    </RequireRole>
+                  }
+                />
+                <Route
+                  path="/asistencias"
+                  element={
+                    <RequireRole routeKey="asistencias">
+                      <Asistencias />
                     </RequireRole>
                   }
                 />

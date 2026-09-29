@@ -592,6 +592,7 @@ tr:last-child td {
 .modal-footer {
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 10px;
   margin-top: 20px;
 }
@@ -700,6 +701,19 @@ tr:last-child td {
 /* --- Bottom nav (mobile) --- */
 .bottom-nav {
   display: none;
+}
+
+/* --- Clickable row (drill-down) --- */
+.clickable-row {
+  cursor: pointer;
+  border-radius: var(--radius);
+  padding: 6px 8px;
+  margin: 0 -8px;
+  transition: background 0.15s ease;
+}
+
+.clickable-row:hover {
+  background: var(--surface-elevated);
 }
 
 /* --- Tabs --- */
@@ -877,8 +891,15 @@ tr:last-child td {
     background: var(--surface);
     border-top: 1px solid var(--border);
     justify-content: space-around;
+    gap: 2px;
     padding: 8px 4px;
     z-index: 60;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .bottom-nav::-webkit-scrollbar {
+    display: none;
   }
   .bottom-nav-item {
     display: flex;
@@ -892,6 +913,15 @@ tr:last-child td {
     font-size: 10px;
     padding: 6px 8px;
     border-radius: 8px;
+    flex: 1 0 auto;
+    min-width: 52px;
+    max-width: 96px;
+  }
+  .bottom-nav-item span:last-child {
+    max-width: 72px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .bottom-nav-item.active {
     color: var(--accent);

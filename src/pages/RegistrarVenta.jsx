@@ -3,20 +3,20 @@ import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { toDateKey, nowTimeKey, formatCurrency } from '../utils/format';
-import { precioServicioEnLocal } from '../utils/precios';
 
 function emptyForm(peluqueroId) {
   return {
     fecha: toDateKey(new Date()),
     peluqueroId: peluqueroId ?? '',
-    servicioId: '',
+    productoId: '',
+    cantidad: 1,
     precio: '',
     pago: 'efectivo',
   };
 }
 
-export default function RegistrarCorte() {
-  const { data, activeLocal, addCorte } = useApp();
+export default function RegistrarVenta() {
+  const { data, activeLocal, addVenta } = useApp();
   const { role, profile } = useAuth();
   const { showToast } = useToast();
   const esPeluquero = role === 'PELUQUERO';
@@ -26,32 +26,25 @@ export default function RegistrarCorte() {
   const [errors, setErrors] = useState({});
 
   const peluquerosActivos = data.peluqueros.filter(
-    (p) => p.activo && (activeLocal === 'all' || String(p.localId) === String(activeLocal)),
+    (p) => p.activo && (activeLocal === 'all' || String(p.localId) === String(activeLocal))
   );
-  const serviciosActivos = data.servicios.filter((s) => s.activo);
+  const productosActivos = data.productos;
   const peluquero = data.peluqueros.find((p) => p.id === form.peluqueroId);
   const local = data.locales.find((l) => l.id === peluquero?.localId);
+  const producto = data.productos.find((p) => p.id === form.productoId);
+
   const precio = Number(form.precio) || 0;
+  const cantidad = Number(form.cantidad) || 0;
+  const monto = precio * cantidad;
+  const comisionMonto = producto?.generaComision ? monto * ((peluquero?.comisionProducto || 0) / 100) : 0;
 
   function update(patch) {
     setForm((prev) => ({ ...prev, ...patch }));
   }
 
-  function handleServicioChange(id) {
-    const servicio = data.servicios.find((s) => s.id === id);
-    update({ servicioId: id, precio: servicio ? precioServicioEnLocal(servicio, local?.id) : form.precio });
-  }
-
-  // Al cambiar el peluquero cambia el local, así que recalculamos el precio del servicio
-  // ya elegido para ese local (evita que quede el precio de otro local).
-  function handlePeluqueroChange(pid) {
-    const nuevoPeluquero = data.peluqueros.find((p) => p.id === pid);
-    const nuevoLocal = data.locales.find((l) => l.id === nuevoPeluquero?.localId);
-    const servicio = data.servicios.find((s) => s.id === form.servicioId);
-    update({
-      peluqueroId: pid,
-      precio: servicio ? precioServicioEnLocal(servicio, nuevoLocal?.id) : form.precio,
-    });
+  function handleProductoChange(id) {
+    const p = data.productos.find((x) => x.id === id);
+    update({ productoId: id, precio: p ? p.precio : form.precio });
   }
 
   function validate() {
@@ -59,8 +52,10 @@ export default function RegistrarCorte() {
     if (!form.fecha) e.fecha = true;
     if (!form.peluqueroId) e.peluqueroId = true;
     if (form.peluqueroId && !local) e.local = true;
-    if (!form.servicioId) e.servicioId = true;
+    if (!form.productoId) e.productoId = true;
+    if (cantidad <= 0) e.cantidad = true;
     if (precio <= 0) e.precio = true;
+    if (producto && cantidad > producto.stock) e.stock = true;
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -69,19 +64,20 @@ export default function RegistrarCorte() {
     ev.preventDefault();
     if (!validate()) return;
     try {
-      await addCorte({
+      await addVenta({
         localId: local.id,
+        peluqueroId: form.peluqueroId,
+        productoId: form.productoId,
+        cantidad,
+        precio,
+        monto,
+        comisionMonto,
+        pago: form.pago,
         fecha: form.fecha,
         hora: nowTimeKey(),
-        peluqueroId: form.peluqueroId,
-        servicioId: form.servicioId,
-        precio,
-        descuento: 0,
-        monto: precio,
-        pago: form.pago,
         notas: '',
       });
-      showToast(`✓ Corte registrado — ${formatCurrency(precio)}`);
+      showToast(`✓ Venta registrada — ${formatCurrency(monto)}`);
       setForm(emptyForm(esPeluquero ? miPeluqueroId : form.peluqueroId));
     } catch (err) {
       showToast(`Error al guardar: ${err.message ?? err}`, 'error');
@@ -99,7 +95,7 @@ export default function RegistrarCorte() {
             {esPeluquero ? (
               <input readOnly value={peluquero?.nombre ?? profile?.nombre ?? ''} />
             ) : (
-              <select value={form.peluqueroId} onChange={(e) => handlePeluqueroChange(e.target.value)}>
+              <select value={form.peluqueroId} onChange={(e) => update({ peluqueroId: e.target.value })}>
                 <option value="">Seleccionar…</option>
                 {peluquerosActivos.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -126,20 +122,37 @@ export default function RegistrarCorte() {
         </div>
 
         <div className="field">
-          <label>Servicio {errors.servicioId && required}</label>
-          <select value={form.servicioId} onChange={(e) => handleServicioChange(e.target.value)}>
+          <label>Producto {errors.productoId && required}</label>
+          <select value={form.productoId} onChange={(e) => handleProductoChange(e.target.value)}>
             <option value="">Seleccionar…</option>
-            {serviciosActivos.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.nombre} — {formatCurrency(precioServicioEnLocal(s, local?.id))}
+            {productosActivos.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.nombre} — {formatCurrency(p.precio)} (stock: {p.stock})
               </option>
             ))}
           </select>
+          {producto?.generaComision && <span className="hint">Este producto genera comisión.</span>}
         </div>
 
-        <div className="field">
-          <label>Precio {errors.precio && required}</label>
-          <input type="number" min="0" value={form.precio} onChange={(e) => update({ precio: e.target.value })} />
+        <div className="grid grid-2">
+          <div className="field">
+            <label>Cantidad {errors.cantidad && required}</label>
+            <input
+              type="number"
+              min="1"
+              value={form.cantidad}
+              onChange={(e) => update({ cantidad: e.target.value })}
+            />
+            {errors.stock && (
+              <span style={{ color: 'var(--red)', fontSize: 13 }}>
+                No hay stock suficiente (disponible: {producto?.stock ?? 0}).
+              </span>
+            )}
+          </div>
+          <div className="field">
+            <label>Precio unitario {errors.precio && required}</label>
+            <input type="number" min="0" value={form.precio} onChange={(e) => update({ precio: e.target.value })} />
+          </div>
         </div>
 
         <div className="field">
@@ -162,8 +175,15 @@ export default function RegistrarCorte() {
           </div>
         </div>
 
+        {comisionMonto > 0 && (
+          <div className="flex-between hint">
+            <span>Comisión para el peluquero</span>
+            <strong style={{ color: 'var(--accent)' }}>{formatCurrency(comisionMonto)}</strong>
+          </div>
+        )}
+
         <button type="submit" className="btn btn-primary" style={{ marginTop: 8 }}>
-          Guardar corte · {formatCurrency(precio)}
+          Guardar venta · {formatCurrency(monto)}
         </button>
       </form>
     </div>

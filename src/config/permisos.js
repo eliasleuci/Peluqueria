@@ -2,8 +2,8 @@
 // como en Sidebar/BottomNav (solo muestran lo que el rol puede ver).
 export const PERMISOS = {
   SUPER_ADMIN: ['admin'],
-  DUENO: ['dashboard', 'registrar', 'agenda', 'peluqueros', 'inventario', 'configuracion'],
-  PELUQUERO: ['registrar'],
+  DUENO: ['dashboard', 'registrar', 'registrarventa', 'agenda', 'peluqueros', 'asistencias', 'inventario', 'configuracion'],
+  PELUQUERO: ['registrar', 'registrarventa', 'mihorario', 'misfinanzas'],
 };
 
 export function rutasPermitidas(role) {

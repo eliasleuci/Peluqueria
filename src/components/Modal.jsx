@@ -1,11 +1,11 @@
 import { createPortal } from 'react-dom';
 
-export default function Modal({ title, onClose, children, footer, width }) {
+export default function Modal({ title, onClose, children, footer, width, closeOnOverlay = true }) {
   return createPortal(
     <div
       className="modal-overlay"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (closeOnOverlay && e.target === e.currentTarget) onClose();
       }}
     >
       <div className="modal-box" style={width ? { maxWidth: width } : undefined}>

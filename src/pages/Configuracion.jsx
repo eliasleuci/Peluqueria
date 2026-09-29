@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import Modal from '../components/Modal';
@@ -32,7 +32,48 @@ export default function Configuracion() {
 }
 
 function emptyLocal() {
-  return { nombre: '', direccion: '', telefono: '', horario: '' };
+  return { nombre: '', direccion: '', telefono: '', horario: '09:00 a 20:00' };
+}
+
+// El horario se guarda como texto "HH:MM a HH:MM" en locales.horario (sin migración).
+// Si había un texto libre viejo que no matchea, se arranca con valores vacíos.
+function parseHorario(str) {
+  const m = /^(\d{2}:\d{2})?\s*a\s*(\d{2}:\d{2})?$/.exec((str || '').trim());
+  return m ? { apertura: m[1] ?? '', cierre: m[2] ?? '' } : { apertura: '', cierre: '' };
+}
+
+function horarioCompleto(str) {
+  const { apertura, cierre } = parseHorario(str);
+  return (!apertura && !cierre) || (apertura && cierre && cierre > apertura);
+}
+
+function HorarioPicker({ value, onChange }) {
+  const { apertura, cierre } = parseHorario(value);
+  const emit = (a, c) => onChange(a || c ? `${a} a ${c}`.trim() : '');
+  const invalido = apertura && cierre && cierre <= apertura;
+  return (
+    <div className="field">
+      <label>Horario de atención</label>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <input
+          type="time"
+          value={apertura}
+          onChange={(e) => emit(e.target.value, cierre)}
+          style={{ flex: 1, minWidth: 110 }}
+          aria-label="Apertura"
+        />
+        <span className="hint">a</span>
+        <input
+          type="time"
+          value={cierre}
+          onChange={(e) => emit(apertura, e.target.value)}
+          style={{ flex: 1, minWidth: 110 }}
+          aria-label="Cierre"
+        />
+      </div>
+      {invalido && <span style={{ color: 'var(--red)', fontSize: 12 }}>El cierre debe ser después de la apertura.</span>}
+    </div>
+  );
 }
 
 function LocalesTab() {
@@ -48,8 +89,13 @@ function LocalesTab() {
   }
 
   async function save(id) {
+    const draft = draftOf(data.locales.find((l) => l.id === id));
+    if (!horarioCompleto(draft.horario)) {
+      showToast('Completá apertura y cierre (el cierre debe ser después de la apertura).', 'error');
+      return;
+    }
     try {
-      await updateLocal(id, draftOf(data.locales.find((l) => l.id === id)));
+      await updateLocal(id, draft);
       showToast('✓ Local actualizado');
     } catch (err) {
       showToast(`Error: ${err.message ?? err}`, 'error');
@@ -63,6 +109,10 @@ function LocalesTab() {
   async function handleAdd(e) {
     e.preventDefault();
     if (!nuevo.nombre.trim()) return;
+    if (!horarioCompleto(nuevo.horario)) {
+      showToast('Completá apertura y cierre (el cierre debe ser después de la apertura).', 'error');
+      return;
+    }
     try {
       await addLocal(nuevo);
       showToast('✓ Local agregado');
@@ -109,10 +159,7 @@ function LocalesTab() {
                 <label>Teléfono</label>
                 <input value={draft.telefono} onChange={(e) => patch(l, 'telefono', e.target.value)} />
               </div>
-              <div className="field">
-                <label>Horario de atención</label>
-                <input value={draft.horario} onChange={(e) => patch(l, 'horario', e.target.value)} />
-              </div>
+              <HorarioPicker value={draft.horario} onChange={(v) => patch(l, 'horario', v)} />
               <div style={{ display: 'flex', gap: 8 }}>
                 <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => save(l.id)}>
                   Guardar
@@ -154,10 +201,7 @@ function LocalesTab() {
               <label>Teléfono</label>
               <input value={nuevo.telefono} onChange={(e) => setNuevo({ ...nuevo, telefono: e.target.value })} />
             </div>
-            <div className="field">
-              <label>Horario de atención</label>
-              <input value={nuevo.horario} onChange={(e) => setNuevo({ ...nuevo, horario: e.target.value })} />
-            </div>
+            <HorarioPicker value={nuevo.horario} onChange={(v) => setNuevo({ ...nuevo, horario: v })} />
           </form>
         </Modal>
       )}
@@ -186,11 +230,106 @@ function LocalesTab() {
   );
 }
 
+function PreciosLocalEditor({ servicio, locales, onSet, onClear }) {
+  const { showToast } = useToast();
+  const inicial = () =>
+    Object.fromEntries(
+      locales.map((l) => [l.id, servicio.preciosPorLocal?.[l.id] != null ? String(servicio.preciosPorLocal[l.id]) : ''])
+    );
+  const [valores, setValores] = useState(inicial);
+  const [guardando, setGuardando] = useState(false);
+
+  const guardadoDe = (l) => {
+    const v = servicio.preciosPorLocal?.[l.id];
+    return v != null ? String(v) : '';
+  };
+  const hayCambios = locales.some((l) => (valores[l.id] ?? '').trim() !== guardadoDe(l));
+
+  async function guardar() {
+    setGuardando(true);
+    try {
+      for (const l of locales) {
+        const nuevo = (valores[l.id] ?? '').trim();
+        if (nuevo === guardadoDe(l)) continue;
+        if (nuevo === '') await onClear(servicio.id, l.id);
+        else await onSet(servicio.id, l.id, Number(nuevo) || 0);
+      }
+      showToast('✓ Precios por local guardados');
+    } catch (err) {
+      showToast(`Error: ${err.message ?? err}`, 'error');
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <div className="stack-gap" style={{ gap: 12, padding: '6px 2px', width: '100%' }}>
+      <span className="hint">Dejá el campo vacío para que ese local use el precio base ({formatCurrency(servicio.precio)}).</span>
+      <div className="grid grid-3">
+        {locales.map((l) => {
+          const valor = valores[l.id] ?? '';
+          const personalizado = valor.trim() !== '' && Number(valor) !== servicio.precio;
+          return (
+            <div className="field" key={l.id}>
+              <label style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                <span>{l.nombre}</span>
+                <span className={`badge ${personalizado ? 'badge-accent' : 'badge-gray'}`} style={{ fontWeight: 600 }}>
+                  {personalizado ? 'Personalizado' : 'Usa base'}
+                </span>
+              </label>
+              <input
+                type="number"
+                min="0"
+                placeholder={`Base: ${servicio.precio}`}
+                value={valor}
+                onChange={(e) => setValores((prev) => ({ ...prev, [l.id]: e.target.value }))}
+              />
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        <button className="btn btn-primary btn-sm" onClick={guardar} disabled={!hayCambios || guardando}>
+          {guardando ? 'Guardando…' : 'Guardar precios'}
+        </button>
+        {hayCambios && <span className="hint">Tenés cambios sin guardar.</span>}
+      </div>
+    </div>
+  );
+}
+
 function ServiciosTab() {
-  const { data, addServicio, updateServicio } = useApp();
+  const { data, addServicio, updateServicio, deleteServicio, setPrecioServicioLocal, quitarPrecioServicioLocal } =
+    useApp();
   const { showToast } = useToast();
   const [showAdd, setShowAdd] = useState(false);
   const [nuevo, setNuevo] = useState({ nombre: '', precio: '' });
+  const [expandido, setExpandido] = useState(null);
+  const [toDelete, setToDelete] = useState(null);
+  const [borrando, setBorrando] = useState(false);
+  const localesActivos = data.locales.filter((l) => l.activo);
+
+  function intentarEliminar(s) {
+    const tieneCortes = data.cortes.some((c) => c.servicioId === s.id);
+    if (tieneCortes) {
+      showToast('No se puede eliminar: tiene cortes registrados. Desactivalo en su lugar.', 'error');
+      return;
+    }
+    setToDelete(s);
+  }
+
+  async function confirmarEliminar() {
+    setBorrando(true);
+    try {
+      await deleteServicio(toDelete.id);
+      showToast('✓ Servicio eliminado');
+      setToDelete(null);
+    } catch (err) {
+      showToast(`Error: ${err.message ?? err}`, 'error');
+    } finally {
+      setBorrando(false);
+    }
+  }
 
   async function handlePrecioChange(id, value) {
     try {
@@ -235,35 +374,84 @@ function ServiciosTab() {
             <thead>
               <tr>
                 <th>Servicio</th>
-                <th>Precio</th>
+                <th>Precio base</th>
                 <th>Estado</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
               {data.servicios.map((s) => (
-                <tr key={s.id}>
-                  <td data-label="Servicio">{s.nombre}</td>
-                  <td data-label="Precio">
-                    <input
-                      type="number"
-                      style={{ width: 120 }}
-                      value={s.precio}
-                      onChange={(e) => handlePrecioChange(s.id, e.target.value)}
-                    />
-                  </td>
-                  <td data-label="Estado">{s.activo ? 'Activo' : 'Inactivo'}</td>
-                  <td data-label="Acciones">
-                    <button className="btn btn-secondary btn-sm" onClick={() => handleToggleActivo(s)}>
-                      {s.activo ? 'Desactivar' : 'Activar'}
-                    </button>
-                  </td>
-                </tr>
+                <Fragment key={s.id}>
+                  <tr>
+                    <td data-label="Servicio">{s.nombre}</td>
+                    <td data-label="Precio base">
+                      <input
+                        type="number"
+                        style={{ width: 120 }}
+                        value={s.precio}
+                        onChange={(e) => handlePrecioChange(s.id, e.target.value)}
+                      />
+                    </td>
+                    <td data-label="Estado">{s.activo ? 'Activo' : 'Inactivo'}</td>
+                    <td data-label="Acciones">
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {localesActivos.length > 1 && (
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => setExpandido(expandido === s.id ? null : s.id)}
+                          >
+                            {expandido === s.id ? 'Cerrar' : 'Precios por local'}
+                          </button>
+                        )}
+                        <button className="btn btn-secondary btn-sm" onClick={() => handleToggleActivo(s)}>
+                          {s.activo ? 'Desactivar' : 'Activar'}
+                        </button>
+                        <button className="btn btn-danger btn-sm" onClick={() => intentarEliminar(s)}>
+                          Eliminar
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  {expandido === s.id && (
+                    <tr>
+                      <td colSpan={4} style={{ background: 'var(--surface-elevated)' }}>
+                        <PreciosLocalEditor
+                          servicio={s}
+                          locales={localesActivos}
+                          onSet={setPrecioServicioLocal}
+                          onClear={quitarPrecioServicioLocal}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {toDelete && (
+        <Modal
+          title="¿Eliminar servicio?"
+          onClose={() => setToDelete(null)}
+          footer={
+            <>
+              <button className="btn btn-ghost" onClick={() => setToDelete(null)}>
+                Cancelar
+              </button>
+              <button className="btn btn-danger" onClick={confirmarEliminar} disabled={borrando}>
+                {borrando ? 'Eliminando…' : 'Sí, eliminar'}
+              </button>
+            </>
+          }
+        >
+          <p>
+            Se eliminará el servicio <strong>{toDelete.nombre}</strong> y sus precios por local. Esta acción no se
+            puede deshacer.
+          </p>
+        </Modal>
+      )}
 
       {showAdd && (
         <Modal

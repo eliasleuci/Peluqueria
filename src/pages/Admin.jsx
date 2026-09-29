@@ -23,6 +23,8 @@ export default function Admin() {
   const [busyId, setBusyId] = useState(null);
   const [toDelete, setToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [subiendoId, setSubiendoId] = useState(null);
+  const [copiadoId, setCopiadoId] = useState(null);
 
   const cargarSalones = useCallback(async () => {
     setLoading(true);
@@ -74,6 +76,43 @@ export default function Admin() {
       showToast(`Error: ${err.message ?? err}`, 'error');
     } finally {
       setBusyId(null);
+    }
+  }
+
+  async function handleLogo(salon, file) {
+    if (!file) return;
+    if (file.type !== 'image/png' && file.type !== 'image/jpeg') {
+      showToast('El logo debe ser una imagen PNG o JPG cuadrada.', 'error');
+      return;
+    }
+    setSubiendoId(salon.id);
+    try {
+      const ext = file.type === 'image/png' ? 'png' : 'jpg';
+      const path = `${salon.id}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from('logos')
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from('logos').getPublicUrl(path);
+      const logoUrl = `${pub.publicUrl}?v=${Date.now()}`;
+      const { error: updErr } = await supabase.from('salones').update({ logo_url: logoUrl }).eq('id', salon.id);
+      if (updErr) throw updErr;
+      showToast('✓ Logo actualizado');
+      await cargarSalones();
+    } catch (err) {
+      showToast(`Error: ${err.message ?? err}`, 'error');
+    } finally {
+      setSubiendoId(null);
+    }
+  }
+
+  async function copiarUrl(salon) {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/p/${salon.slug}`);
+      setCopiadoId(salon.id);
+      setTimeout(() => setCopiadoId((c) => (c === salon.id ? null : c)), 1500);
+    } catch {
+      showToast('No se pudo copiar.', 'error');
     }
   }
 
@@ -155,12 +194,64 @@ export default function Admin() {
           <div className="stack-gap">
             {salones.map((s) => (
               <div key={s.id} className="list-item-card" style={{ flexWrap: 'wrap' }}>
+                {s.logo_url ? (
+                  <img
+                    src={s.logo_url}
+                    alt=""
+                    style={{ width: 44, height: 44, borderRadius: 10, objectFit: 'cover', border: '1px solid var(--border)' }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 10,
+                      background: 'var(--surface-elevated)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 18,
+                    }}
+                  >
+                    🏪
+                  </div>
+                )}
                 <div style={{ flex: 1, minWidth: 160 }}>
                   <div style={{ fontWeight: 600 }}>{s.nombre}</div>
                   <div className="hint">Alta: {new Date(s.created_at).toLocaleDateString('es-AR')}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, minWidth: 0 }}>
+                    <code
+                      style={{
+                        fontSize: 12,
+                        color: 'var(--text-secondary)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        minWidth: 0,
+                      }}
+                    >
+                      /p/{s.slug}
+                    </code>
+                    <button className="btn btn-ghost btn-sm" style={{ flexShrink: 0 }} onClick={() => copiarUrl(s)}>
+                      {copiadoId === s.id ? '✓ Copiado' : 'Copiar link'}
+                    </button>
+                  </div>
                 </div>
                 <Badge color={s.activo ? 'green' : 'yellow'}>{s.activo ? 'Activo' : 'Pausado'}</Badge>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer' }}>
+                    {subiendoId === s.id ? 'Subiendo…' : 'Subir logo'}
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg"
+                      style={{ display: 'none' }}
+                      disabled={subiendoId === s.id}
+                      onChange={(e) => {
+                        handleLogo(s, e.target.files?.[0]);
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
                   <button
                     className="btn btn-secondary btn-sm"
                     disabled={busyId === s.id}

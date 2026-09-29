@@ -6,7 +6,7 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null); // { id, role, salonId, peluqueroId, nombre }
-  const [salon, setSalon] = useState(null); // { id, nombre }
+  const [salon, setSalon] = useState(null); // { id, nombre, logoUrl }
   const [loading, setLoading] = useState(true);
 
   const loadProfileAndSalon = useCallback(async (userId) => {
@@ -33,10 +33,10 @@ export function AuthProvider({ children }) {
     if (profileRow.salon_id) {
       const { data: salonRow } = await supabase
         .from('salones')
-        .select('id, nombre')
+        .select('id, nombre, logo_url')
         .eq('id', profileRow.salon_id)
         .single();
-      setSalon(salonRow ?? null);
+      setSalon(salonRow ? { id: salonRow.id, nombre: salonRow.nombre, logoUrl: salonRow.logo_url ?? null } : null);
     } else {
       setSalon(null);
     }

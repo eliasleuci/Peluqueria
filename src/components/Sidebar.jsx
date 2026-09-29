@@ -11,7 +11,15 @@ export default function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
-        <span>✂️</span>
+        {salon?.logoUrl ? (
+          <img
+            src={salon.logoUrl}
+            alt=""
+            style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }}
+          />
+        ) : (
+          <span>✂️</span>
+        )}
         <span className="label brand-text">
           <span className="brand-name">{salon?.nombre ?? 'MiPeluquería'}</span>
           <span className="brand-tagline">{profile?.nombre}</span>
