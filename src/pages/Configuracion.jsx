@@ -4,6 +4,8 @@ import { useToast } from '../context/ToastContext';
 import Modal from '../components/Modal';
 import { formatCurrency, formatDate } from '../utils/format';
 import { filterByLocal } from '../utils/stats';
+import HorarioSemanalEditor from '../components/HorarioSemanalEditor';
+import { semanaPorDefecto, validarSemana, resumenSemana } from '../utils/horarios';
 
 const TABS = [
   { key: 'locales', label: '🏪 Locales' },
@@ -32,48 +34,7 @@ export default function Configuracion() {
 }
 
 function emptyLocal() {
-  return { nombre: '', direccion: '', telefono: '', horario: '09:00 a 20:00' };
-}
-
-// El horario se guarda como texto "HH:MM a HH:MM" en locales.horario (sin migración).
-// Si había un texto libre viejo que no matchea, se arranca con valores vacíos.
-function parseHorario(str) {
-  const m = /^(\d{2}:\d{2})?\s*a\s*(\d{2}:\d{2})?$/.exec((str || '').trim());
-  return m ? { apertura: m[1] ?? '', cierre: m[2] ?? '' } : { apertura: '', cierre: '' };
-}
-
-function horarioCompleto(str) {
-  const { apertura, cierre } = parseHorario(str);
-  return (!apertura && !cierre) || (apertura && cierre && cierre > apertura);
-}
-
-function HorarioPicker({ value, onChange }) {
-  const { apertura, cierre } = parseHorario(value);
-  const emit = (a, c) => onChange(a || c ? `${a} a ${c}`.trim() : '');
-  const invalido = apertura && cierre && cierre <= apertura;
-  return (
-    <div className="field">
-      <label>Horario de atención</label>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        <input
-          type="time"
-          value={apertura}
-          onChange={(e) => emit(e.target.value, cierre)}
-          style={{ flex: 1, minWidth: 110 }}
-          aria-label="Apertura"
-        />
-        <span className="hint">a</span>
-        <input
-          type="time"
-          value={cierre}
-          onChange={(e) => emit(apertura, e.target.value)}
-          style={{ flex: 1, minWidth: 110 }}
-          aria-label="Cierre"
-        />
-      </div>
-      {invalido && <span style={{ color: 'var(--red)', fontSize: 12 }}>El cierre debe ser después de la apertura.</span>}
-    </div>
-  );
+  return { nombre: '', direccion: '', telefono: '', horarioSemanal: semanaPorDefecto() };
 }
 
 function LocalesTab() {
@@ -83,6 +44,8 @@ function LocalesTab() {
   const [showAdd, setShowAdd] = useState(false);
   const [nuevo, setNuevo] = useState(emptyLocal());
   const [toDelete, setToDelete] = useState(null);
+  const [editHorario, setEditHorario] = useState(null); // { local, semana }
+  const [guardandoHorario, setGuardandoHorario] = useState(false);
 
   function draftOf(l) {
     return drafts[l.id] ?? l;
@@ -90,12 +53,8 @@ function LocalesTab() {
 
   async function save(id) {
     const draft = draftOf(data.locales.find((l) => l.id === id));
-    if (!horarioCompleto(draft.horario)) {
-      showToast('Completá apertura y cierre (el cierre debe ser después de la apertura).', 'error');
-      return;
-    }
     try {
-      await updateLocal(id, draft);
+      await updateLocal(id, { nombre: draft.nombre, direccion: draft.direccion, telefono: draft.telefono });
       showToast('✓ Local actualizado');
     } catch (err) {
       showToast(`Error: ${err.message ?? err}`, 'error');
@@ -109,8 +68,9 @@ function LocalesTab() {
   async function handleAdd(e) {
     e.preventDefault();
     if (!nuevo.nombre.trim()) return;
-    if (!horarioCompleto(nuevo.horario)) {
-      showToast('Completá apertura y cierre (el cierre debe ser después de la apertura).', 'error');
+    const errorHorario = validarSemana(nuevo.horarioSemanal);
+    if (errorHorario) {
+      showToast(errorHorario, 'error');
       return;
     }
     try {
@@ -120,6 +80,24 @@ function LocalesTab() {
       setNuevo(emptyLocal());
     } catch (err) {
       showToast(`Error: ${err.message ?? err}`, 'error');
+    }
+  }
+
+  async function guardarHorario() {
+    const errorHorario = validarSemana(editHorario.semana);
+    if (errorHorario) {
+      showToast(errorHorario, 'error');
+      return;
+    }
+    setGuardandoHorario(true);
+    try {
+      await updateLocal(editHorario.local.id, { horarioSemanal: editHorario.semana });
+      showToast('✓ Horario actualizado');
+      setEditHorario(null);
+    } catch (err) {
+      showToast(`Error: ${err.message ?? err}`, 'error');
+    } finally {
+      setGuardandoHorario(false);
     }
   }
 
@@ -159,7 +137,20 @@ function LocalesTab() {
                 <label>Teléfono</label>
                 <input value={draft.telefono} onChange={(e) => patch(l, 'telefono', e.target.value)} />
               </div>
-              <HorarioPicker value={draft.horario} onChange={(v) => patch(l, 'horario', v)} />
+              <div className="field">
+                <label>Horario de atención</label>
+                <p style={{ fontSize: 13, lineHeight: 1.4 }}>
+                  {l.horarioSemanal ? resumenSemana(l.horarioSemanal) : l.horario || 'Sin horario cargado'}
+                </p>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  style={{ alignSelf: 'flex-start' }}
+                  onClick={() => setEditHorario({ local: l, semana: l.horarioSemanal ?? semanaPorDefecto() })}
+                >
+                  Editar horarios
+                </button>
+              </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => save(l.id)}>
                   Guardar
@@ -176,6 +167,7 @@ function LocalesTab() {
       {showAdd && (
         <Modal
           title="Nuevo local"
+          width={640}
           onClose={() => setShowAdd(false)}
           footer={
             <>
@@ -201,8 +193,38 @@ function LocalesTab() {
               <label>Teléfono</label>
               <input value={nuevo.telefono} onChange={(e) => setNuevo({ ...nuevo, telefono: e.target.value })} />
             </div>
-            <HorarioPicker value={nuevo.horario} onChange={(v) => setNuevo({ ...nuevo, horario: v })} />
+            <div className="field">
+              <label>Horario de atención</label>
+              <HorarioSemanalEditor
+                value={nuevo.horarioSemanal}
+                onChange={(v) => setNuevo({ ...nuevo, horarioSemanal: v })}
+              />
+            </div>
           </form>
+        </Modal>
+      )}
+
+      {editHorario && (
+        <Modal
+          title={`Horario — ${editHorario.local.nombre}`}
+          width={640}
+          closeOnOverlay={false}
+          onClose={() => setEditHorario(null)}
+          footer={
+            <>
+              <button className="btn btn-ghost" onClick={() => setEditHorario(null)}>
+                Cancelar
+              </button>
+              <button className="btn btn-primary" onClick={guardarHorario} disabled={guardandoHorario}>
+                {guardandoHorario ? 'Guardando…' : 'Guardar horario'}
+              </button>
+            </>
+          }
+        >
+          <HorarioSemanalEditor
+            value={editHorario.semana}
+            onChange={(v) => setEditHorario((prev) => ({ ...prev, semana: v }))}
+          />
         </Modal>
       )}
 

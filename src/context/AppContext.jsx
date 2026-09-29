@@ -2,7 +2,8 @@ import { createContext, useContext, useMemo, useCallback, useEffect, useState, u
 import { supabase, extractFunctionError } from '../lib/supabaseClient';
 import { useAuth } from './AuthContext';
 import { toDateKey, nowTimeKey } from '../utils/format';
-import { evaluarIngreso } from '../utils/asistencia';
+import { evaluarIngreso, elegirFranja } from '../utils/asistencia';
+import { normalizarSemana, resumenSemana, franjasDelDia, semanaDePeluquero } from '../utils/horarios';
 
 const AppContext = createContext(null);
 
@@ -26,6 +27,7 @@ const mapLocal = (r) => ({
   direccion: r.direccion ?? '',
   telefono: r.telefono ?? '',
   horario: r.horario ?? '',
+  horarioSemanal: r.horario_semanal ? normalizarSemana(r.horario_semanal) : null,
   metaMensual: Number(r.meta_mensual) || 0,
   activo: r.activo !== false,
 });
@@ -40,6 +42,7 @@ const mapPeluquero = (r) => ({
   comisionProducto: Number(r.comision_producto) || 0,
   fechaIngreso: r.fecha_ingreso ?? '',
   horaEntrada: (r.hora_entrada ?? '').slice(0, 5),
+  horarioSemanal: r.horario_semanal ? normalizarSemana(r.horario_semanal) : null,
   telefono: r.telefono ?? '',
   email: r.email ?? '',
   authUserId: r.auth_user_id,
@@ -54,6 +57,8 @@ const mapAsistencia = (r) => ({
   horaIngreso: (r.hora_ingreso ?? '').slice(0, 5),
   estado: r.estado,
   minutosTarde: Number(r.minutos_tarde) || 0,
+  franja: Number(r.franja) || 1,
+  horaEsperada: (r.hora_esperada ?? '').slice(0, 5),
 });
 
 const mapNotificacion = (r) => ({
@@ -306,6 +311,7 @@ export function AppProvider({ children }) {
           comision_producto: peluquero.comisionProducto || 0,
           fecha_ingreso: peluquero.fechaIngreso || null,
           hora_entrada: peluquero.horaEntrada || null,
+          horario_semanal: peluquero.horarioSemanal ?? null,
           telefono: peluquero.telefono || null,
         })
         .select()
@@ -339,6 +345,7 @@ export function AppProvider({ children }) {
       if (patch.comisionProducto !== undefined) dbPatch.comision_producto = patch.comisionProducto;
       if (patch.fechaIngreso !== undefined) dbPatch.fecha_ingreso = patch.fechaIngreso || null;
       if (patch.horaEntrada !== undefined) dbPatch.hora_entrada = patch.horaEntrada || null;
+      if (patch.horarioSemanal !== undefined) dbPatch.horario_semanal = patch.horarioSemanal;
       if (patch.telefono !== undefined) dbPatch.telefono = patch.telefono;
       const { error } = await supabase.from('peluqueros').update(dbPatch).eq('id', id);
       if (error) throw error;
@@ -478,7 +485,8 @@ export function AppProvider({ children }) {
         nombre: local.nombre,
         direccion: local.direccion || null,
         telefono: local.telefono || null,
-        horario: local.horario || null,
+        horario: local.horarioSemanal ? resumenSemana(local.horarioSemanal) : local.horario || null,
+        horario_semanal: local.horarioSemanal ?? null,
         meta_mensual: local.metaMensual || 0,
       });
       if (error) throw error;
@@ -494,6 +502,11 @@ export function AppProvider({ children }) {
       if (patch.direccion !== undefined) dbPatch.direccion = patch.direccion;
       if (patch.telefono !== undefined) dbPatch.telefono = patch.telefono;
       if (patch.horario !== undefined) dbPatch.horario = patch.horario;
+      if (patch.horarioSemanal !== undefined) {
+        dbPatch.horario_semanal = patch.horarioSemanal;
+        // Texto legible que acompaña al horario estructurado.
+        if (patch.horarioSemanal) dbPatch.horario = resumenSemana(patch.horarioSemanal);
+      }
       if (patch.metaMensual !== undefined) dbPatch.meta_mensual = patch.metaMensual;
       const { error } = await supabase.from('locales').update(dbPatch).eq('id', id);
       if (error) throw error;
@@ -582,44 +595,59 @@ export function AppProvider({ children }) {
     [refetch]
   );
 
-  // El peluquero logueado ficha su ingreso del día. Calcula si llegó tarde (tolerancia 5 min)
-  // y, si es así, se deja un aviso persistente. Un solo fichaje por día (unique en la DB).
+  // El peluquero logueado ficha su ingreso. Con horario cortado hay un fichaje por franja:
+  // se elige la franja que corresponde a la hora actual y se controla la tardanza contra su
+  // inicio (tolerancia 5 min). Si llega tarde, queda un aviso persistente.
   const marcarIngreso = useCallback(async () => {
     const salon_id = assertSalon();
     const peluqueroId = profile?.peluqueroId;
     if (!peluqueroId) throw new Error('Tu usuario no está vinculado a un peluquero.');
     const mio = data.peluqueros.find((p) => p.id === peluqueroId);
-    const fecha = toDateKey(new Date());
+    const ahora = new Date();
+    const fecha = toDateKey(ahora);
     const horaIngreso = nowTimeKey();
-    const { estado, minutosTarde } = evaluarIngreso(horaIngreso, mio?.horaEntrada);
+
+    const franjas = franjasDelDia(semanaDePeluquero(mio, data.locales), ahora);
+    const marcadas = data.asistencias
+      .filter((a) => a.peluqueroId === peluqueroId && a.fecha === fecha)
+      .map((a) => a.franja);
+    const eleccion = elegirFranja(franjas, marcadas, horaIngreso);
+    if (!eleccion) {
+      throw new Error(franjas.length > 1 ? 'Ya marcaste todos tus ingresos de hoy.' : 'Ya marcaste tu ingreso hoy.');
+    }
+    const horaEsperada = eleccion.franja?.desde ?? null;
+    const { estado, minutosTarde } = evaluarIngreso(horaIngreso, horaEsperada);
 
     const { error } = await supabase.from('asistencias').insert({
       salon_id,
       peluquero_id: peluqueroId,
       local_id: mio?.localId ?? null,
       fecha,
+      franja: eleccion.numero,
+      hora_esperada: horaEsperada,
       hora_ingreso: horaIngreso,
       estado,
       minutos_tarde: minutosTarde,
       created_by: user?.id,
     });
     if (error) {
-      if (error.code === '23505') throw new Error('Ya marcaste tu ingreso hoy.');
+      if (error.code === '23505') throw new Error('Ese ingreso ya estaba marcado.');
       throw error;
     }
 
     if (estado === 'tarde') {
+      const turno = franjas.length > 1 ? ` al turno de las ${horaEsperada}` : '';
       await supabase.from('notificaciones').insert({
         salon_id,
         peluquero_id: peluqueroId,
         tipo: 'tardanza',
-        mensaje: `Llegaste ${minutosTarde} min tarde el ${fecha} (ingreso ${horaIngreso}). Podrías perder el presentismo.`,
+        mensaje: `Llegaste ${minutosTarde} min tarde${turno} el ${fecha} (ingreso ${horaIngreso}). Podrías perder el presentismo.`,
       });
     }
 
     await refetch();
-    return { estado, minutosTarde, horaIngreso };
-  }, [assertSalon, profile, user, data.peluqueros, refetch]);
+    return { estado, minutosTarde, horaIngreso, franja: eleccion.numero, horaEsperada };
+  }, [assertSalon, profile, user, data.peluqueros, data.locales, data.asistencias, refetch]);
 
   const marcarNotificacionLeida = useCallback(
     async (id) => {

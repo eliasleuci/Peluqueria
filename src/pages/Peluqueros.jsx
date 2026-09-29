@@ -3,11 +3,24 @@ import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import Avatar from '../components/Avatar';
 import Modal from '../components/Modal';
+import { Clock } from 'lucide-react';
 import { formatCurrency, formatDate } from '../utils/format';
 import { cortesOfMonth, currentMonthKey, sumMonto } from '../utils/stats';
+import HorarioSemanalEditor from '../components/HorarioSemanalEditor';
+import { semanaPorDefecto, validarSemana, resumenSemana, semanaDePeluquero } from '../utils/horarios';
 
-function emptyPeluquero(localId) {
-  return { nombre: '', localId, comision: 40, comisionProducto: 0, fechaIngreso: '', horaEntrada: '', telefono: '', email: '' };
+function emptyPeluquero(localId, horarioSemanal) {
+  return {
+    nombre: '',
+    localId,
+    comision: 40,
+    comisionProducto: 0,
+    fechaIngreso: '',
+    horarioSemanal,
+    horarioTocado: false,
+    telefono: '',
+    email: '',
+  };
 }
 
 export default function Peluqueros() {
@@ -16,7 +29,7 @@ export default function Peluqueros() {
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const localesActivos = data.locales.filter((l) => l.activo);
-  const [form, setForm] = useState(() => emptyPeluquero(localesActivos[0]?.id ?? ''));
+  const [form, setForm] = useState(() => emptyPeluquero(localesActivos[0]?.id ?? '', semanaPorDefecto()));
   const [selected, setSelected] = useState(null);
   const [toDelete, setToDelete] = useState(null);
   const [credenciales, setCredenciales] = useState(null);
@@ -60,9 +73,28 @@ export default function Peluqueros() {
     return data.locales.find((l) => l.id === id)?.nombre ?? '—';
   }
 
+  // Horario del local (punto de partida del horario del peluquero).
+  function horarioDeLocal(localId) {
+    return data.locales.find((l) => String(l.id) === String(localId))?.horarioSemanal ?? semanaPorDefecto();
+  }
+
+  function nuevoForm() {
+    const localId = localesActivos[0]?.id ?? '';
+    return emptyPeluquero(localId, horarioDeLocal(localId));
+  }
+
+  function cambiarLocal(localId) {
+    // Si todavía no tocaron el horario, se precarga el del nuevo local.
+    setForm((prev) => ({
+      ...prev,
+      localId,
+      horarioSemanal: prev.horarioTocado ? prev.horarioSemanal : horarioDeLocal(localId),
+    }));
+  }
+
   function openNewModal() {
     setEditTarget(null);
-    setForm(emptyPeluquero(localesActivos[0]?.id ?? ''));
+    setForm(nuevoForm());
     setShowModal(true);
   }
 
@@ -74,7 +106,8 @@ export default function Peluqueros() {
       comision: peluquero.comision,
       comisionProducto: peluquero.comisionProducto ?? 0,
       fechaIngreso: peluquero.fechaIngreso || '',
-      horaEntrada: peluquero.horaEntrada || '',
+      horarioSemanal: peluquero.horarioSemanal ?? semanaDePeluquero(peluquero, data.locales),
+      horarioTocado: true,
       telefono: peluquero.telefono || '',
     });
     setShowModal(true);
@@ -83,13 +116,18 @@ export default function Peluqueros() {
   async function handleSubmit(e) {
     e.preventDefault();
     if (!form.nombre.trim() || !form.localId) return;
+    const errorHorario = validarSemana(form.horarioSemanal);
+    if (errorHorario) {
+      showToast(errorHorario, 'error');
+      return;
+    }
     const patch = {
       nombre: form.nombre.trim(),
       localId: form.localId,
       comision: Number(form.comision) || 0,
       comisionProducto: Number(form.comisionProducto) || 0,
       fechaIngreso: form.fechaIngreso,
-      horaEntrada: form.horaEntrada,
+      horarioSemanal: form.horarioSemanal,
       telefono: form.telefono,
     };
     try {
@@ -99,12 +137,12 @@ export default function Peluqueros() {
         showToast('✓ Peluquero actualizado');
         setShowModal(false);
         setEditTarget(null);
-        setForm(emptyPeluquero(localesActivos[0]?.id ?? ''));
+        setForm(nuevoForm());
       } else {
         const creado = await addPeluquero(patch);
         showToast('✓ Peluquero agregado');
         setShowModal(false);
-        setForm(emptyPeluquero(localesActivos[0]?.id ?? ''));
+        setForm(nuevoForm());
         if (form.email.trim()) {
           const cred = await crearAccesoPeluquero(creado.id, form.email.trim());
           setCredenciales(cred);
@@ -215,6 +253,7 @@ export default function Peluqueros() {
       {showModal && (
         <Modal
           title={editTarget ? 'Editar peluquero' : 'Nuevo peluquero'}
+          width={640}
           onClose={() => setShowModal(false)}
           footer={
             <>
@@ -234,7 +273,7 @@ export default function Peluqueros() {
             </div>
             <div className="field">
               <label>Local asignado</label>
-              <select value={form.localId} onChange={(e) => setForm({ ...form, localId: e.target.value })}>
+              <select value={form.localId} onChange={(e) => cambiarLocal(e.target.value)}>
                 {localesActivos.map((l) => (
                   <option key={l.id} value={l.id}>
                     {l.nombre}
@@ -269,11 +308,23 @@ export default function Peluqueros() {
               />
             </div>
             <div className="field">
-              <label>Hora de entrada (para el control de asistencia)</label>
-              <input
-                type="time"
-                value={form.horaEntrada}
-                onChange={(e) => setForm({ ...form, horaEntrada: e.target.value })}
+              <div className="flex-between" style={{ gap: 8, flexWrap: 'wrap' }}>
+                <label>Horario de trabajo (control de asistencia)</label>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() =>
+                    setForm({ ...form, horarioSemanal: horarioDeLocal(form.localId), horarioTocado: false })
+                  }
+                >
+                  Usar horario del local
+                </button>
+              </div>
+              <HorarioSemanalEditor
+                value={form.horarioSemanal}
+                onChange={(v) => setForm({ ...form, horarioSemanal: v, horarioTocado: true })}
+                etiquetaAbierto="Trabaja"
+                etiquetaCerrado="Franco"
               />
             </div>
             <div className="field">
@@ -381,6 +432,9 @@ export default function Peluqueros() {
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 16 }}>{selected.nombre}</div>
                   <div className="hint">{localName(selected.localId)}</div>
+                  <div className="hint" style={{ marginTop: 2, display: 'flex', gap: 4, alignItems: 'center' }}>
+                    <Clock size={12} /> {resumenSemana(semanaDePeluquero(selected, data.locales))}
+                  </div>
                 </div>
               </div>
               <button className="modal-close" onClick={() => setSelected(null)}>

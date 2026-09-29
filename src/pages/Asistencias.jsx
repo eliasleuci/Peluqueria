@@ -68,7 +68,8 @@ export default function Asistencias() {
               <tr>
                 <th>Fecha</th>
                 <th>Peluquero</th>
-                <th>Hora</th>
+                <th>Turno</th>
+                <th>Ingreso</th>
                 <th>Estado</th>
               </tr>
             </thead>
@@ -77,7 +78,8 @@ export default function Asistencias() {
                 <tr key={a.id}>
                   <td data-label="Fecha">{formatDate(a.fecha)}</td>
                   <td data-label="Peluquero">{peluqueroName(a.peluqueroId)}</td>
-                  <td data-label="Hora">{a.horaIngreso}</td>
+                  <td data-label="Turno">{a.horaEsperada || '—'}</td>
+                  <td data-label="Ingreso">{a.horaIngreso}</td>
                   <td data-label="Estado">
                     <Badge color={a.estado === 'tarde' ? 'red' : 'green'}>
                       {a.estado === 'tarde' ? `Tarde (${a.minutosTarde} min)` : 'A tiempo'}
@@ -87,7 +89,7 @@ export default function Asistencias() {
               ))}
               {registros.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="text-secondary">
+                  <td colSpan={5} className="text-secondary">
                     Sin ingresos registrados en el período.
                   </td>
                 </tr>

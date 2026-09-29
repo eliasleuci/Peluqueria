@@ -968,3 +968,97 @@ input[readonly] {
   color: var(--text-secondary);
   cursor: default;
 }
+
+/* --- Horario semanal (locales y peluqueros) --- */
+.horario-semanal {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.horario-dia {
+  display: grid;
+  grid-template-columns: 170px 1fr;
+  align-items: start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.horario-dia.cerrado {
+  background: var(--surface-elevated);
+}
+
+.horario-dia-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 38px;
+}
+
+.horario-dia-nombre {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.horario-toggle {
+  border: 1px solid var(--input-border);
+  background: var(--surface-elevated);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.horario-toggle.on {
+  border-color: var(--green);
+  background: rgba(31, 122, 76, 0.1);
+  color: var(--green);
+}
+
+.horario-franjas {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.horario-franja {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.horario-franja input[type='time'] {
+  width: 118px;
+}
+
+.horario-icon-btn {
+  padding: 4px 6px;
+}
+
+.horario-semanal .btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+@media (max-width: 640px) {
+  .horario-dia {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .horario-dia-head {
+    min-height: 0;
+  }
+  .horario-franja input[type='time'] {
+    width: auto;
+    flex: 1;
+    min-width: 100px;
+  }
+}
