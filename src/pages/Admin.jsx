@@ -5,6 +5,7 @@ import { useToast } from '../context/ToastContext';
 import ChangePasswordModal from '../components/ChangePasswordModal';
 import Badge from '../components/Badge';
 import Modal from '../components/Modal';
+import CredencialesModal from '../components/CredencialesModal';
 
 function emptyForm() {
   return { salonNombre: '', duenoNombre: '', duenoEmail: '' };
@@ -25,6 +26,9 @@ export default function Admin() {
   const [deleting, setDeleting] = useState(false);
   const [subiendoId, setSubiendoId] = useState(null);
   const [copiadoId, setCopiadoId] = useState(null);
+  const [toReset, setToReset] = useState(null);
+  const [reseteando, setReseteando] = useState(false);
+  const [credReset, setCredReset] = useState(null);
 
   const cargarSalones = useCallback(async () => {
     setLoading(true);
@@ -113,6 +117,23 @@ export default function Admin() {
       setTimeout(() => setCopiadoId((c) => (c === salon.id ? null : c)), 1500);
     } catch {
       showToast('No se pudo copiar.', 'error');
+    }
+  }
+
+  async function handleResetDueno() {
+    setReseteando(true);
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke('reset-dueno-password', {
+        body: { salonId: toReset.id },
+      });
+      if (fnError) throw new Error(await extractFunctionError(fnError));
+      if (data?.error) throw new Error(data.error);
+      setToReset(null);
+      setCredReset(data);
+    } catch (err) {
+      showToast(`Error: ${err.message ?? err}`, 'error');
+    } finally {
+      setReseteando(false);
     }
   }
 
@@ -252,6 +273,9 @@ export default function Admin() {
                       }}
                     />
                   </label>
+                  <button className="btn btn-secondary btn-sm" onClick={() => setToReset(s)}>
+                    Nueva clave del dueño
+                  </button>
                   <button
                     className="btn btn-secondary btn-sm"
                     disabled={busyId === s.id}
@@ -271,33 +295,37 @@ export default function Admin() {
       </div>
 
       {credenciales && (
+        <CredencialesModal title="✓ Cliente creado" credenciales={credenciales} onClose={() => setCredenciales(null)} />
+      )}
+
+      {credReset && (
+        <CredencialesModal
+          title="✓ Nueva contraseña del dueño"
+          credenciales={credReset}
+          onClose={() => setCredReset(null)}
+        />
+      )}
+
+      {toReset && (
         <Modal
-          title="✓ Cliente creado"
+          title="¿Generar nueva contraseña?"
           width={420}
-          onClose={() => setCredenciales(null)}
+          onClose={() => setToReset(null)}
           footer={
-            <button className="btn btn-primary" onClick={() => setCredenciales(null)}>
-              Listo
-            </button>
+            <>
+              <button className="btn btn-ghost" onClick={() => setToReset(null)}>
+                Cancelar
+              </button>
+              <button className="btn btn-primary" onClick={handleResetDueno} disabled={reseteando}>
+                {reseteando ? 'Generando…' : 'Sí, generar'}
+              </button>
+            </>
           }
         >
-          <p className="hint" style={{ marginBottom: 12 }}>
-            Pasale estos datos al dueño para que entre por primera vez. Esta contraseña no se vuelve a mostrar.
+          <p>
+            Se va a generar una contraseña nueva para el dueño de <strong>{toReset.nombre}</strong>. La contraseña
+            actual deja de funcionar. Después te la mostramos para que se la pases.
           </p>
-          <div className="stack-gap" style={{ gap: 10 }}>
-            <div className="field">
-              <label>Peluquería</label>
-              <input readOnly value={credenciales.salonNombre} />
-            </div>
-            <div className="field">
-              <label>Usuario</label>
-              <input readOnly value={credenciales.email} />
-            </div>
-            <div className="field">
-              <label>Contraseña provisoria</label>
-              <input readOnly value={credenciales.password} style={{ color: 'var(--accent)', fontWeight: 700 }} />
-            </div>
-          </div>
         </Modal>
       )}
 
