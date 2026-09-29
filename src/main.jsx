@@ -21,6 +21,7 @@ import { AppProvider } from './context/AppContext.jsx';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { ToastProvider } from './context/ToastContext.jsx';
 import { RequireAuth, RequireRole } from './components/RouteGuards.jsx';
+import BrandingSync from './components/BrandingSync.jsx';
 import { rutaPorDefecto } from './config/permisos.js';
 
 function IndexRedirect() {
@@ -35,6 +36,7 @@ createRoot(document.getElementById('root')).render(
       <AppProvider>
         <ToastProvider>
           <BrowserRouter>
+            <BrandingSync />
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/olvide-clave" element={<OlvideClave />} />
