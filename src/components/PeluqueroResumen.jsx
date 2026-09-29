@@ -1,4 +1,5 @@
 import Badge from './Badge';
+import Avatar from './Avatar';
 import { formatCurrency, formatDate, toDateKey } from '../utils/format';
 import { computeMetrics, rankServicios } from '../utils/stats';
 
@@ -78,9 +79,13 @@ export default function PeluqueroResumen({ peluquero, cortes, servicios }) {
                   </span>
                 </div>
                 {d.cortes.map((c) => (
-                  <div className="list-item-card" key={c.id} style={{ padding: '12px 14px' }}>
+                  <div className="list-item-card" key={c.id}>
                     <div style={{ fontWeight: 700, width: 48, flexShrink: 0 }}>{c.hora}</div>
-                    <div style={{ flex: 1, minWidth: 0, fontWeight: 600 }}>{servicioName(c.servicioId)}</div>
+                    <Avatar name={peluquero.nombre} size={40} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600 }}>{peluquero.nombre}</div>
+                      <div className="hint">{servicioName(c.servicioId)}</div>
+                    </div>
                     <div style={{ textAlign: 'right' }}>
                       <div style={{ fontWeight: 700 }}>{formatCurrency(c.monto)}</div>
                       <Badge color={c.pago === 'efectivo' ? 'green' : 'blue'}>
