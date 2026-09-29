@@ -78,7 +78,7 @@ const mapProducto = (r) => ({
   unidad: r.unidad,
   stockMinimo: Number(r.stock_minimo) || 0,
   precio: Number(r.precio) || 0,
-  generaComision: r.genera_comision === true,
+  comisionFija: Number(r.comision_fija) || 0, // $ por unidad para el vendedor
   localId: r.local_id ?? null, // null = compartido entre todos los locales
 });
 
@@ -399,7 +399,7 @@ export function AppProvider({ children }) {
         unidad: producto.unidad,
         stock_minimo: producto.stockMinimo,
         precio: producto.precio || 0,
-        genera_comision: producto.generaComision === true,
+        comision_fija: Number(producto.comisionFija) || 0,
         local_id: producto.localId || null,
       });
       if (error) throw error;
@@ -416,7 +416,7 @@ export function AppProvider({ children }) {
       if (patch.unidad !== undefined) dbPatch.unidad = patch.unidad;
       if (patch.stockMinimo !== undefined) dbPatch.stock_minimo = patch.stockMinimo;
       if (patch.precio !== undefined) dbPatch.precio = patch.precio;
-      if (patch.generaComision !== undefined) dbPatch.genera_comision = patch.generaComision;
+      if (patch.comisionFija !== undefined) dbPatch.comision_fija = Number(patch.comisionFija) || 0;
       if (patch.localId !== undefined) dbPatch.local_id = patch.localId || null;
       const { error } = await supabase.from('productos').update(dbPatch).eq('id', id);
       if (error) throw error;

@@ -38,7 +38,8 @@ export default function RegistrarVenta() {
   const precio = Number(form.precio) || 0;
   const cantidad = Number(form.cantidad) || 0;
   const monto = precio * cantidad;
-  const comisionMonto = producto?.generaComision ? monto * ((peluquero?.comisionProducto || 0) / 100) : 0;
+  // Comisión fija por unidad definida en el producto (p. ej. $7.000 por perfume).
+  const comisionMonto = (producto?.comisionFija || 0) * cantidad;
 
   function update(patch) {
     setForm((prev) => ({ ...prev, ...patch }));
@@ -144,7 +145,9 @@ export default function RegistrarVenta() {
               </option>
             ))}
           </select>
-          {producto?.generaComision && <span className="hint">Este producto genera comisión.</span>}
+          {producto?.comisionFija > 0 && (
+            <span className="hint">Comisión para el vendedor: {formatCurrency(producto.comisionFija)} por unidad.</span>
+          )}
           {local && productosActivos.length === 0 && (
             <span className="hint">No hay productos cargados para {local.nombre}.</span>
           )}

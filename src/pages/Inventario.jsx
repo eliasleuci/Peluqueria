@@ -29,7 +29,7 @@ function emptyProducto(localId = '') {
     unidad: 'unidades',
     stockMinimo: 1,
     precio: 0,
-    generaComision: false,
+    comisionFija: 0,
   };
 }
 
@@ -96,7 +96,7 @@ function InventarioTab() {
       unidad: p.unidad,
       stockMinimo: p.stockMinimo,
       precio: p.precio,
-      generaComision: p.generaComision,
+      comisionFija: p.comisionFija,
     });
     setShowForm(true);
   }
@@ -114,7 +114,7 @@ function InventarioTab() {
       unidad: form.unidad,
       stockMinimo: Number(form.stockMinimo) || 0,
       precio: Number(form.precio) || 0,
-      generaComision: form.generaComision,
+      comisionFija: Number(form.comisionFija) || 0,
     };
     try {
       if (editando) {
@@ -126,14 +126,6 @@ function InventarioTab() {
       }
       setShowForm(false);
       setEditando(null);
-    } catch (err) {
-      showToast(`Error: ${err.message ?? err}`, 'error');
-    }
-  }
-
-  async function handleToggleComision(p) {
-    try {
-      await updateProducto(p.id, { generaComision: !p.generaComision });
     } catch (err) {
       showToast(`Error: ${err.message ?? err}`, 'error');
     }
@@ -206,12 +198,7 @@ function InventarioTab() {
                       {p.stock} {p.unidad}
                     </td>
                     <td data-label="Comisión">
-                      <button
-                        className={`btn btn-sm ${p.generaComision ? 'btn-primary' : 'btn-secondary'}`}
-                        onClick={() => handleToggleComision(p)}
-                      >
-                        {p.generaComision ? 'Sí' : 'No'}
-                      </button>
+                      {p.comisionFija > 0 ? `${formatCurrency(p.comisionFija)} / u` : <span className="hint">—</span>}
                     </td>
                     <td data-label="Estado">
                       <Badge color={estado.color}>
@@ -328,15 +315,23 @@ function InventarioTab() {
                 />
               </div>
             </div>
-            <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div className="field">
+              <label>Comisión para el vendedor ($ por unidad)</label>
               <input
-                type="checkbox"
-                checked={form.generaComision}
-                onChange={(e) => setForm({ ...form, generaComision: e.target.checked })}
-                style={{ width: 'auto' }}
+                type="number"
+                min="0"
+                placeholder="0 = sin comisión"
+                value={form.comisionFija}
+                onChange={(e) => setForm({ ...form, comisionFija: e.target.value })}
               />
-              <span>Genera comisión al peluquero (ej. perfumes)</span>
-            </label>
+              <span className="hint">
+                {Number(form.comisionFija) > 0
+                  ? `Por cada unidad vendida, el vendedor se lleva ${formatCurrency(form.comisionFija)} y al local le quedan ${formatCurrency(
+                      Math.max(0, (Number(form.precio) || 0) - Number(form.comisionFija))
+                    )}.`
+                  : 'Dejalo en 0 si este producto no le deja comisión al vendedor (ej. ceras). Para perfumes, poné 7000.'}
+              </span>
+            </div>
           </form>
         </Modal>
       )}

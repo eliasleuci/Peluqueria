@@ -14,7 +14,6 @@ function emptyPeluquero(localId, horarioSemanal) {
     nombre: '',
     localId,
     comision: 40,
-    comisionProducto: 0,
     fechaIngreso: '',
     horarioSemanal,
     horarioTocado: false,
@@ -105,7 +104,6 @@ export default function Peluqueros() {
       nombre: peluquero.nombre,
       localId: String(peluquero.localId),
       comision: peluquero.comision,
-      comisionProducto: peluquero.comisionProducto ?? 0,
       fechaIngreso: peluquero.fechaIngreso || '',
       horarioSemanal: peluquero.horarioSemanal ?? semanaDePeluquero(peluquero, data.locales),
       horarioTocado: true,
@@ -126,7 +124,6 @@ export default function Peluqueros() {
       nombre: form.nombre.trim(),
       localId: form.localId,
       comision: Number(form.comision) || 0,
-      comisionProducto: Number(form.comisionProducto) || 0,
       fechaIngreso: form.fechaIngreso,
       horarioSemanal: form.horarioSemanal,
       telefono: form.telefono,
@@ -304,21 +301,13 @@ export default function Peluqueros() {
                 />
               </div>
               <div className="field">
-                <label>Comisión productos (%)</label>
+                <label>Fecha de ingreso</label>
                 <input
-                  type="number"
-                  value={form.comisionProducto}
-                  onChange={(e) => setForm({ ...form, comisionProducto: e.target.value })}
+                  type="date"
+                  value={form.fechaIngreso}
+                  onChange={(e) => setForm({ ...form, fechaIngreso: e.target.value })}
                 />
               </div>
-            </div>
-            <div className="field">
-              <label>Fecha de ingreso</label>
-              <input
-                type="date"
-                value={form.fechaIngreso}
-                onChange={(e) => setForm({ ...form, fechaIngreso: e.target.value })}
-              />
             </div>
             <div className="field">
               <div className="flex-between" style={{ gap: 8, flexWrap: 'wrap' }}>
