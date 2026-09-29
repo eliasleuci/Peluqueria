@@ -79,6 +79,7 @@ const mapProducto = (r) => ({
   stockMinimo: Number(r.stock_minimo) || 0,
   precio: Number(r.precio) || 0,
   generaComision: r.genera_comision === true,
+  localId: r.local_id ?? null, // null = compartido entre todos los locales
 });
 
 const mapVenta = (r) => ({
@@ -399,6 +400,7 @@ export function AppProvider({ children }) {
         stock_minimo: producto.stockMinimo,
         precio: producto.precio || 0,
         genera_comision: producto.generaComision === true,
+        local_id: producto.localId || null,
       });
       if (error) throw error;
       await refetch();
@@ -415,6 +417,7 @@ export function AppProvider({ children }) {
       if (patch.stockMinimo !== undefined) dbPatch.stock_minimo = patch.stockMinimo;
       if (patch.precio !== undefined) dbPatch.precio = patch.precio;
       if (patch.generaComision !== undefined) dbPatch.genera_comision = patch.generaComision;
+      if (patch.localId !== undefined) dbPatch.local_id = patch.localId || null;
       const { error } = await supabase.from('productos').update(dbPatch).eq('id', id);
       if (error) throw error;
       await refetch();

@@ -28,9 +28,11 @@ export default function RegistrarVenta() {
   const peluquerosActivos = data.peluqueros.filter(
     (p) => p.activo && (activeLocal === 'all' || String(p.localId) === String(activeLocal))
   );
-  const productosActivos = data.productos;
   const peluquero = data.peluqueros.find((p) => p.id === form.peluqueroId);
   const local = data.locales.find((l) => l.id === peluquero?.localId);
+  // Solo productos del local donde se vende (o compartidos entre locales).
+  const disponiblesEn = (localId) => data.productos.filter((p) => !p.localId || p.localId === localId);
+  const productosActivos = local ? disponiblesEn(local.id) : [];
   const producto = data.productos.find((p) => p.id === form.productoId);
 
   const precio = Number(form.precio) || 0;
@@ -40,6 +42,13 @@ export default function RegistrarVenta() {
 
   function update(patch) {
     setForm((prev) => ({ ...prev, ...patch }));
+  }
+
+  // Al cambiar de peluquero puede cambiar el local: si el producto elegido no se vende ahí, se limpia.
+  function handlePeluqueroChange(pid) {
+    const nuevoLocalId = data.peluqueros.find((p) => p.id === pid)?.localId;
+    const sigueDisponible = disponiblesEn(nuevoLocalId).some((p) => p.id === form.productoId);
+    update(sigueDisponible ? { peluqueroId: pid } : { peluqueroId: pid, productoId: '', precio: '' });
   }
 
   function handleProductoChange(id) {
@@ -95,7 +104,7 @@ export default function RegistrarVenta() {
             {esPeluquero ? (
               <input readOnly value={peluquero?.nombre ?? profile?.nombre ?? ''} />
             ) : (
-              <select value={form.peluqueroId} onChange={(e) => update({ peluqueroId: e.target.value })}>
+              <select value={form.peluqueroId} onChange={(e) => handlePeluqueroChange(e.target.value)}>
                 <option value="">Seleccionar…</option>
                 {peluquerosActivos.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -123,8 +132,12 @@ export default function RegistrarVenta() {
 
         <div className="field">
           <label>Producto {errors.productoId && required}</label>
-          <select value={form.productoId} onChange={(e) => handleProductoChange(e.target.value)}>
-            <option value="">Seleccionar…</option>
+          <select
+            value={form.productoId}
+            onChange={(e) => handleProductoChange(e.target.value)}
+            disabled={!local}
+          >
+            <option value="">{local ? 'Seleccionar…' : 'Primero elegí el peluquero'}</option>
             {productosActivos.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.nombre} — {formatCurrency(p.precio)} (stock: {p.stock})
@@ -132,6 +145,9 @@ export default function RegistrarVenta() {
             ))}
           </select>
           {producto?.generaComision && <span className="hint">Este producto genera comisión.</span>}
+          {local && productosActivos.length === 0 && (
+            <span className="hint">No hay productos cargados para {local.nombre}.</span>
+          )}
         </div>
 
         <div className="grid grid-2">

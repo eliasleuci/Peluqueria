@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { Package, Wallet } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import Modal from '../components/Modal';
@@ -8,8 +9,8 @@ import { formatCurrency, formatDate, toDateKey } from '../utils/format';
 import { filterByLocal, filterByRange, periodRange } from '../utils/stats';
 
 const TABS = [
-  { key: 'inventario', label: '📦 Inventario' },
-  { key: 'ventas', label: '💰 Ventas de producto' },
+  { key: 'inventario', label: 'Inventario', icon: Package },
+  { key: 'ventas', label: 'Ventas de producto', icon: Wallet },
 ];
 
 function estadoDe(producto) {
@@ -19,8 +20,17 @@ function estadoDe(producto) {
   return { label: 'OK', color: 'green', emoji: '🟢' };
 }
 
-function emptyProducto() {
-  return { nombre: '', categoria: '', stock: 0, unidad: 'unidades', stockMinimo: 1, precio: 0, generaComision: false };
+function emptyProducto(localId = '') {
+  return {
+    nombre: '',
+    categoria: '',
+    localId,
+    stock: 0,
+    unidad: 'unidades',
+    stockMinimo: 1,
+    precio: 0,
+    generaComision: false,
+  };
 }
 
 export default function Inventario() {
@@ -29,7 +39,13 @@ export default function Inventario() {
     <div className="stack-gap">
       <div className="tabs">
         {TABS.map((t) => (
-          <button key={t.key} className={`tab-btn${tab === t.key ? ' active' : ''}`} onClick={() => setTab(t.key)}>
+          <button
+            key={t.key}
+            className={`tab-btn${tab === t.key ? ' active' : ''}`}
+            onClick={() => setTab(t.key)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          >
+            <t.icon size={16} strokeWidth={1.8} />
             {t.label}
           </button>
         ))}
@@ -40,9 +56,10 @@ export default function Inventario() {
 }
 
 function InventarioTab() {
-  const { data, addProducto, updateProducto, deleteProducto, ajustarStock } = useApp();
+  const { data, activeLocal, addProducto, updateProducto, deleteProducto, ajustarStock } = useApp();
   const { showToast } = useToast();
-  const [showAdd, setShowAdd] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [editando, setEditando] = useState(null); // producto en edición, o null si es alta
   const [form, setForm] = useState(emptyProducto());
   const [ajusteProducto, setAjusteProducto] = useState(null);
   const [ajusteCantidad, setAjusteCantidad] = useState(1);
@@ -50,33 +67,65 @@ function InventarioTab() {
   const [ajusteSigno, setAjusteSigno] = useState(1);
   const [toDelete, setToDelete] = useState(null);
 
-  const productos = data.productos;
+  const localesActivos = data.locales.filter((l) => l.activo);
+  const localName = (id) => (id ? data.locales.find((l) => l.id === id)?.nombre ?? '—' : 'Compartido');
+
+  // Filtro del selector de local del topbar: productos de ese local + los compartidos.
+  const productos = useMemo(
+    () =>
+      activeLocal === 'all'
+        ? data.productos
+        : data.productos.filter((p) => !p.localId || String(p.localId) === String(activeLocal)),
+    [data.productos, activeLocal]
+  );
   const enAlerta = useMemo(() => productos.filter((p) => estadoDe(p).label === 'Reponer'), [productos]);
 
-  async function handleAdd(e) {
-    e.preventDefault();
-    if (!form.nombre.trim()) return;
-    try {
-      await addProducto({
-        nombre: form.nombre.trim(),
-        categoria: form.categoria.trim(),
-        stock: Number(form.stock) || 0,
-        unidad: form.unidad,
-        stockMinimo: Number(form.stockMinimo) || 0,
-        precio: Number(form.precio) || 0,
-        generaComision: form.generaComision,
-      });
-      showToast('✓ Producto agregado');
-      setShowAdd(false);
-      setForm(emptyProducto());
-    } catch (err) {
-      showToast(`Error: ${err.message ?? err}`, 'error');
-    }
+  function abrirAlta() {
+    setEditando(null);
+    setForm(emptyProducto(activeLocal !== 'all' ? activeLocal : localesActivos[0]?.id ?? ''));
+    setShowForm(true);
   }
 
-  async function handlePrecio(p, value) {
+  function abrirEdicion(p) {
+    setEditando(p);
+    setForm({
+      nombre: p.nombre,
+      categoria: p.categoria,
+      localId: p.localId ?? '',
+      stock: p.stock,
+      unidad: p.unidad,
+      stockMinimo: p.stockMinimo,
+      precio: p.precio,
+      generaComision: p.generaComision,
+    });
+    setShowForm(true);
+  }
+
+  async function handleSave(e) {
+    e.preventDefault();
+    if (!form.nombre.trim()) {
+      showToast('Poné un nombre al producto.', 'error');
+      return;
+    }
+    const datos = {
+      nombre: form.nombre.trim(),
+      categoria: form.categoria.trim(),
+      localId: form.localId || null,
+      unidad: form.unidad,
+      stockMinimo: Number(form.stockMinimo) || 0,
+      precio: Number(form.precio) || 0,
+      generaComision: form.generaComision,
+    };
     try {
-      await updateProducto(p.id, { precio: Number(value) || 0 });
+      if (editando) {
+        await updateProducto(editando.id, datos);
+        showToast('✓ Producto actualizado');
+      } else {
+        await addProducto({ ...datos, stock: Number(form.stock) || 0 });
+        showToast('✓ Producto agregado');
+      }
+      setShowForm(false);
+      setEditando(null);
     } catch (err) {
       showToast(`Error: ${err.message ?? err}`, 'error');
     }
@@ -124,7 +173,7 @@ function InventarioTab() {
 
       <div className="section-header">
         <div />
-        <button className="btn btn-primary" onClick={() => setShowAdd(true)}>
+        <button className="btn btn-primary" onClick={abrirAlta}>
           + Agregar producto
         </button>
       </div>
@@ -136,6 +185,7 @@ function InventarioTab() {
               <tr>
                 <th>Producto</th>
                 <th>Categoría</th>
+                <th>Local</th>
                 <th>Precio</th>
                 <th>Stock</th>
                 <th>Comisión</th>
@@ -150,15 +200,8 @@ function InventarioTab() {
                   <tr key={p.id}>
                     <td data-label="Producto">{p.nombre}</td>
                     <td data-label="Categoría">{p.categoria}</td>
-                    <td data-label="Precio">
-                      <input
-                        type="number"
-                        min="0"
-                        style={{ width: 100 }}
-                        defaultValue={p.precio}
-                        onBlur={(e) => handlePrecio(p, e.target.value)}
-                      />
-                    </td>
+                    <td data-label="Local">{localName(p.localId)}</td>
+                    <td data-label="Precio">{formatCurrency(p.precio)}</td>
                     <td data-label="Stock">
                       {p.stock} {p.unidad}
                     </td>
@@ -177,6 +220,9 @@ function InventarioTab() {
                     </td>
                     <td data-label="Acciones">
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                        <button className="btn btn-secondary btn-sm" onClick={() => abrirEdicion(p)}>
+                          Editar
+                        </button>
                         <button className="btn btn-secondary btn-sm" onClick={() => setAjusteProducto(p)}>
                           Ajustar stock
                         </button>
@@ -188,34 +234,54 @@ function InventarioTab() {
                   </tr>
                 );
               })}
+              {productos.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="text-secondary">
+                    {activeLocal === 'all' ? 'Todavía no cargaste productos.' : 'No hay productos en este local.'}
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {showAdd && (
+      {showForm && (
         <Modal
-          title="Agregar producto"
-          onClose={() => setShowAdd(false)}
+          title={editando ? `Editar — ${editando.nombre}` : 'Agregar producto'}
+          onClose={() => setShowForm(false)}
           footer={
             <>
-              <button className="btn btn-ghost" onClick={() => setShowAdd(false)}>
+              <button className="btn btn-ghost" onClick={() => setShowForm(false)}>
                 Cancelar
               </button>
-              <button className="btn btn-primary" onClick={handleAdd}>
+              <button className="btn btn-primary" onClick={handleSave}>
                 Guardar
               </button>
             </>
           }
         >
-          <form className="stack-gap" onSubmit={handleAdd}>
+          <form className="stack-gap" onSubmit={handleSave}>
             <div className="field">
               <label>Nombre</label>
               <input value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} />
             </div>
-            <div className="field">
-              <label>Categoría</label>
-              <input value={form.categoria} onChange={(e) => setForm({ ...form, categoria: e.target.value })} />
+            <div className="grid grid-2">
+              <div className="field">
+                <label>Categoría</label>
+                <input value={form.categoria} onChange={(e) => setForm({ ...form, categoria: e.target.value })} />
+              </div>
+              <div className="field">
+                <label>Local</label>
+                <select value={form.localId} onChange={(e) => setForm({ ...form, localId: e.target.value })}>
+                  {localesActivos.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.nombre}
+                    </option>
+                  ))}
+                  <option value="">Compartido (todos los locales)</option>
+                </select>
+              </div>
             </div>
             <div className="grid grid-2">
               <div className="field">
@@ -237,14 +303,22 @@ function InventarioTab() {
               </div>
             </div>
             <div className="grid grid-2">
-              <div className="field">
-                <label>Stock inicial</label>
-                <input
-                  type="number"
-                  value={form.stock}
-                  onChange={(e) => setForm({ ...form, stock: e.target.value })}
-                />
-              </div>
+              {editando ? (
+                <div className="field">
+                  <label>Stock actual</label>
+                  <input readOnly value={`${editando.stock} ${editando.unidad}`} />
+                  <span className="hint">Se modifica con "Ajustar stock".</span>
+                </div>
+              ) : (
+                <div className="field">
+                  <label>Stock inicial</label>
+                  <input
+                    type="number"
+                    value={form.stock}
+                    onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                  />
+                </div>
+              )}
               <div className="field">
                 <label>Stock mínimo</label>
                 <input
