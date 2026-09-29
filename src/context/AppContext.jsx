@@ -336,6 +336,16 @@ export function AppProvider({ children }) {
     [refetch]
   );
 
+  // Genera una contraseña provisoria nueva para un peluquero que ya tiene acceso.
+  const regenerarAccesoPeluquero = useCallback(async (peluqueroId) => {
+    const { data, error } = await supabase.functions.invoke('create-peluquero-login', {
+      body: { peluqueroId, regenerar: true },
+    });
+    if (error) throw new Error(await extractFunctionError(error));
+    if (data?.error) throw new Error(data.error);
+    return data; // { email, password }
+  }, []);
+
   const updatePeluquero = useCallback(
     async (id, patch) => {
       const dbPatch = {};
@@ -690,6 +700,7 @@ export function AppProvider({ children }) {
       deleteCorte,
       addPeluquero,
       crearAccesoPeluquero,
+      regenerarAccesoPeluquero,
       updatePeluquero,
       deletePeluquero,
       addProducto,
@@ -723,6 +734,7 @@ export function AppProvider({ children }) {
       addPeluquero,
       updatePeluquero,
       crearAccesoPeluquero,
+      regenerarAccesoPeluquero,
       deletePeluquero,
       addProducto,
       updateProducto,

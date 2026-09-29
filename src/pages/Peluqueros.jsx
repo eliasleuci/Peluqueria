@@ -24,7 +24,8 @@ function emptyPeluquero(localId, horarioSemanal) {
 }
 
 export default function Peluqueros() {
-  const { data, activeLocal, addPeluquero, updatePeluquero, deletePeluquero, crearAccesoPeluquero } = useApp();
+  const { data, activeLocal, addPeluquero, updatePeluquero, deletePeluquero, crearAccesoPeluquero, regenerarAccesoPeluquero } =
+    useApp();
   const { showToast } = useToast();
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
@@ -161,6 +162,18 @@ export default function Peluqueros() {
       setCredenciales(cred);
       setAccesoEmail('');
       setSelected((prev) => (prev ? { ...prev, authUserId: 'activo', email: accesoEmail.trim() } : prev));
+    } catch (err) {
+      showToast(`Error: ${err.message ?? err}`, 'error');
+    } finally {
+      setCreandoAcceso(false);
+    }
+  }
+
+  async function handleRegenerar() {
+    setCreandoAcceso(true);
+    try {
+      const cred = await regenerarAccesoPeluquero(selected.id);
+      setCredenciales(cred);
     } catch (err) {
       showToast(`Error: ${err.message ?? err}`, 'error');
     } finally {
@@ -444,9 +457,20 @@ export default function Peluqueros() {
             <div className="card" style={{ marginBottom: 16 }}>
               <div className="card-title">Acceso al sistema</div>
               {selected.authUserId ? (
-                <div className="flex-between">
-                  <span className="hint">{selected.email || 'Login activo'}</span>
-                  <span className="badge badge-green">Activo</span>
+                <div className="stack-gap" style={{ gap: 10 }}>
+                  <div className="flex-between">
+                    <span className="hint">{selected.email || 'Login activo'}</span>
+                    <span className="badge badge-green">Activo</span>
+                  </div>
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    style={{ alignSelf: 'flex-start' }}
+                    onClick={handleRegenerar}
+                    disabled={creandoAcceso}
+                  >
+                    {creandoAcceso ? 'Generando…' : 'Generar nueva contraseña'}
+                  </button>
+                  <span className="hint">Si se olvidó la clave, generale una nueva y pasásela.</span>
                 </div>
               ) : (
                 <div className="stack-gap" style={{ gap: 10 }}>
