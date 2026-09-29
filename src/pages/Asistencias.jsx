@@ -1,14 +1,32 @@
 import { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import Badge from '../components/Badge';
+import Modal from '../components/Modal';
+import { useToast } from '../context/ToastContext';
 import Avatar from '../components/Avatar';
 import PeriodSelector from '../components/PeriodSelector';
 import { formatDate, toDateKey } from '../utils/format';
 import { filterByLocal, filterByRange, periodRange, currentMonthKey, monthKeyOf } from '../utils/stats';
 
 export default function Asistencias() {
-  const { data, activeLocal } = useApp();
+  const { data, activeLocal, deleteAsistencia } = useApp();
+  const { showToast } = useToast();
   const { asistencias, peluqueros } = data;
+  const [toDelete, setToDelete] = useState(null);
+  const [borrando, setBorrando] = useState(false);
+
+  async function confirmarEliminar() {
+    setBorrando(true);
+    try {
+      await deleteAsistencia(toDelete.id);
+      showToast('✓ Fichaje eliminado');
+      setToDelete(null);
+    } catch (err) {
+      showToast(`Error: ${err.message ?? err}`, 'error');
+    } finally {
+      setBorrando(false);
+    }
+  }
 
   const hoy = toDateKey(new Date());
   const [periodo, setPeriodo] = useState({ period: 'mes', custom: { from: hoy, to: hoy } });
@@ -71,6 +89,7 @@ export default function Asistencias() {
                 <th>Turno</th>
                 <th>Ingreso</th>
                 <th>Estado</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -85,11 +104,16 @@ export default function Asistencias() {
                       {a.estado === 'tarde' ? `Tarde (${a.minutosTarde} min)` : 'A tiempo'}
                     </Badge>
                   </td>
+                  <td data-label="Acciones">
+                    <button className="btn btn-danger btn-sm" onClick={() => setToDelete(a)}>
+                      Eliminar
+                    </button>
+                  </td>
                 </tr>
               ))}
               {registros.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="text-secondary">
+                  <td colSpan={6} className="text-secondary">
                     Sin ingresos registrados en el período.
                   </td>
                 </tr>
@@ -98,6 +122,30 @@ export default function Asistencias() {
           </table>
         </div>
       </div>
+
+      {toDelete && (
+        <Modal
+          title="¿Eliminar fichaje?"
+          onClose={() => setToDelete(null)}
+          footer={
+            <>
+              <button className="btn btn-ghost" onClick={() => setToDelete(null)}>
+                Cancelar
+              </button>
+              <button className="btn btn-danger" onClick={confirmarEliminar} disabled={borrando}>
+                {borrando ? 'Eliminando…' : 'Sí, eliminar'}
+              </button>
+            </>
+          }
+        >
+          <p>
+            Se eliminará el ingreso de <strong>{peluqueroName(toDelete.peluqueroId)}</strong> del{' '}
+            {formatDate(toDelete.fecha)} a las {toDelete.horaIngreso}
+            {toDelete.estado === 'tarde' ? ', junto con su aviso de tardanza' : ''}. No cuenta más para el
+            presentismo y el empleado podrá volver a fichar ese turno.
+          </p>
+        </Modal>
+      )}
     </div>
   );
 }

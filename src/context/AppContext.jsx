@@ -628,18 +628,22 @@ export function AppProvider({ children }) {
     const horaEsperada = eleccion.franja?.desde ?? null;
     const { estado, minutosTarde } = evaluarIngreso(horaIngreso, horaEsperada);
 
-    const { error } = await supabase.from('asistencias').insert({
-      salon_id,
-      peluquero_id: peluqueroId,
-      local_id: mio?.localId ?? null,
-      fecha,
-      franja: eleccion.numero,
-      hora_esperada: horaEsperada,
-      hora_ingreso: horaIngreso,
-      estado,
-      minutos_tarde: minutosTarde,
-      created_by: user?.id,
-    });
+    const { data: insertada, error } = await supabase
+      .from('asistencias')
+      .insert({
+        salon_id,
+        peluquero_id: peluqueroId,
+        local_id: mio?.localId ?? null,
+        fecha,
+        franja: eleccion.numero,
+        hora_esperada: horaEsperada,
+        hora_ingreso: horaIngreso,
+        estado,
+        minutos_tarde: minutosTarde,
+        created_by: user?.id,
+      })
+      .select('id')
+      .single();
     if (error) {
       if (error.code === '23505') throw new Error('Ese ingreso ya estaba marcado.');
       throw error;
@@ -650,6 +654,7 @@ export function AppProvider({ children }) {
       await supabase.from('notificaciones').insert({
         salon_id,
         peluquero_id: peluqueroId,
+        asistencia_id: insertada?.id ?? null,
         tipo: 'tardanza',
         mensaje: `Llegaste ${minutosTarde} min tarde${turno} el ${fecha} (ingreso ${horaIngreso}). Podrías perder el presentismo.`,
       });
@@ -658,6 +663,17 @@ export function AppProvider({ children }) {
     await refetch();
     return { estado, minutosTarde, horaIngreso, franja: eleccion.numero, horaEsperada };
   }, [assertSalon, profile, user, data.peluqueros, data.locales, data.asistencias, refetch]);
+
+  // El dueño elimina un fichaje (prueba o error). El aviso de tardanza asociado se borra
+  // en cascada desde la base.
+  const deleteAsistencia = useCallback(
+    async (id) => {
+      const { error } = await supabase.from('asistencias').delete().eq('id', id);
+      if (error) throw error;
+      await refetch();
+    },
+    [refetch]
+  );
 
   const marcarNotificacionLeida = useCallback(
     async (id) => {
@@ -719,6 +735,7 @@ export function AppProvider({ children }) {
       quitarPrecioServicioLocal,
       marcarIngreso,
       marcarNotificacionLeida,
+      deleteAsistencia,
       updateConfig,
       limpiarDemo,
     }),
@@ -752,6 +769,7 @@ export function AppProvider({ children }) {
       quitarPrecioServicioLocal,
       marcarIngreso,
       marcarNotificacionLeida,
+      deleteAsistencia,
       updateConfig,
       limpiarDemo,
     ]
