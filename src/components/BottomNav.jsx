@@ -16,8 +16,10 @@ export default function BottomNav() {
           to={item.path}
           className={({ isActive }) => `bottom-nav-item ${isActive ? 'active' : ''}`}
         >
-          <span className="icon">{item.icon}</span>
-          <span>{item.label.split(' ')[0]}</span>
+          <span className="icon">
+            <item.icon size={22} strokeWidth={1.8} />
+          </span>
+          <span>{item.short}</span>
         </NavLink>
       ))}
     </nav>

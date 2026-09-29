@@ -155,9 +155,23 @@ textarea {
 }
 
 .sidebar-link .icon {
-  font-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 20px;
-  text-align: center;
+  flex-shrink: 0;
+}
+
+.brand-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  flex-shrink: 0;
 }
 
 .main-area {
@@ -927,7 +941,13 @@ tr:last-child td {
     color: var(--accent);
   }
   .bottom-nav-item .icon {
-    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 24px;
+  }
+  .bottom-nav-item.active .icon {
+    transform: translateY(-1px);
   }
   .fab {
     bottom: 84px;
