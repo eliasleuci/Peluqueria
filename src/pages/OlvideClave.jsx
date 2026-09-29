@@ -2,6 +2,23 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 
+// Mensajes de Supabase Auth en castellano. "Error sending recovery email" aparece cuando el
+// servicio de mails no puede entregar (hoy el remitente de prueba solo entrega a la casilla
+// del administrador), así que se le indica al usuario la alternativa que sí funciona.
+function traducirError(err) {
+  const msg = err?.message ?? String(err);
+  if (/sending recovery email/i.test(msg)) {
+    return 'No pudimos enviarte el mail de recuperación. Pedile al dueño de la peluquería que te genere una contraseña nueva desde la app.';
+  }
+  if (/rate limit|too many/i.test(msg)) {
+    return 'Hiciste demasiados intentos. Esperá unos minutos y probá de nuevo.';
+  }
+  if (/invalid.*email|unable to validate email/i.test(msg)) {
+    return 'El email no es válido. Revisalo e intentá de nuevo.';
+  }
+  return msg;
+}
+
 export default function OlvideClave() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -19,7 +36,7 @@ export default function OlvideClave() {
       if (resetError) throw resetError;
       setEnviado(true);
     } catch (err) {
-      setError(err.message ?? String(err));
+      setError(traducirError(err));
     } finally {
       setLoading(false);
     }
