@@ -1062,3 +1062,22 @@ input[readonly] {
     min-width: 100px;
   }
 }
+
+/* --- Corte editable (agenda / historial) --- */
+.corte-editable {
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.corte-editable:hover,
+.corte-editable:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 2px 10px rgba(179, 56, 44, 0.12);
+  outline: none;
+}
+
+.corte-editable-icon {
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  margin-left: -4px;
+}

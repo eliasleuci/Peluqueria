@@ -283,8 +283,15 @@ export function AppProvider({ children }) {
       if (patch.descuento !== undefined) dbPatch.descuento = patch.descuento;
       if (patch.monto !== undefined) dbPatch.monto = patch.monto;
       if (patch.pago !== undefined) dbPatch.pago = patch.pago;
-      const { error } = await supabase.from('cortes').update(dbPatch).eq('id', id);
+      if (patch.servicioId !== undefined) dbPatch.servicio_id = patch.servicioId;
+      if (patch.fecha !== undefined) dbPatch.fecha = patch.fecha;
+      if (patch.hora !== undefined) dbPatch.hora = patch.hora;
+      if (patch.peluqueroId !== undefined) dbPatch.peluquero_id = patch.peluqueroId;
+      if (patch.localId !== undefined) dbPatch.local_id = patch.localId;
+      const { data: actualizados, error } = await supabase.from('cortes').update(dbPatch).eq('id', id).select('id');
       if (error) throw error;
+      // Si la RLS no deja modificarlo, Supabase no da error: simplemente no actualiza filas.
+      if (!actualizados?.length) throw new Error('No tenés permiso para modificar este corte.');
       await refetch();
     },
     [refetch]
@@ -292,8 +299,9 @@ export function AppProvider({ children }) {
 
   const deleteCorte = useCallback(
     async (id) => {
-      const { error } = await supabase.from('cortes').delete().eq('id', id);
+      const { data: borrados, error } = await supabase.from('cortes').delete().eq('id', id).select('id');
       if (error) throw error;
+      if (!borrados?.length) throw new Error('No tenés permiso para borrar este corte.');
       await refetch();
     },
     [refetch]

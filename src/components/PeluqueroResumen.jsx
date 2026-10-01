@@ -1,10 +1,14 @@
+import { useState } from 'react';
+import { Pencil } from 'lucide-react';
 import Badge from './Badge';
+import EditarCorteModal from './EditarCorteModal';
 import Avatar from './Avatar';
 import { formatCurrency, formatDate, toDateKey } from '../utils/format';
 import { computeMetrics, rankServicios } from '../utils/stats';
 
 // cortes: los cortes del peluquero ya filtrados por el período elegido.
 export default function PeluqueroResumen({ peluquero, cortes, servicios }) {
+  const [editando, setEditando] = useState(null);
   const m = computeMetrics(cortes);
   const comisionMonto = m.ingresos * ((Number(peluquero.comision) || 0) / 100);
   const porServicio = rankServicios(cortes, servicios);
@@ -66,6 +70,11 @@ export default function PeluqueroResumen({ peluquero, cortes, servicios }) {
 
       <div className="card">
         <div className="card-title">Historial</div>
+        {dias.length > 0 && (
+          <p className="hint" style={{ marginTop: -8, marginBottom: 12 }}>
+            Tocá un corte para editarlo o eliminarlo.
+          </p>
+        )}
         {dias.length === 0 ? (
           <p className="text-secondary">Sin registros en el período.</p>
         ) : (
@@ -79,7 +88,14 @@ export default function PeluqueroResumen({ peluquero, cortes, servicios }) {
                   </span>
                 </div>
                 {d.cortes.map((c) => (
-                  <div className="list-item-card" key={c.id}>
+                  <div
+                    className="list-item-card corte-editable"
+                    key={c.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setEditando(c)}
+                    onKeyDown={(e) => e.key === 'Enter' && setEditando(c)}
+                  >
                     <div style={{ fontWeight: 700, width: 48, flexShrink: 0 }}>{c.hora}</div>
                     <Avatar name={peluquero.nombre} size={40} />
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -92,6 +108,7 @@ export default function PeluqueroResumen({ peluquero, cortes, servicios }) {
                         {c.pago === 'efectivo' ? 'Efectivo' : 'Transferencia'}
                       </Badge>
                     </div>
+                    <Pencil size={16} className="corte-editable-icon" aria-hidden="true" />
                   </div>
                 ))}
               </div>
@@ -99,6 +116,7 @@ export default function PeluqueroResumen({ peluquero, cortes, servicios }) {
           </div>
         )}
       </div>
+      {editando && <EditarCorteModal corte={editando} onClose={() => setEditando(null)} />}
     </div>
   );
 }

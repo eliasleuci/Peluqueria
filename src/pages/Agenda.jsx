@@ -1,8 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import Avatar from '../components/Avatar';
 import Badge from '../components/Badge';
+import EditarCorteModal from '../components/EditarCorteModal';
+import { Pencil } from 'lucide-react';
 import { formatCurrency, formatDate, toDateKey } from '../utils/format';
 import { filterByLocal, sumMonto } from '../utils/stats';
 
@@ -10,6 +12,7 @@ export default function Agenda() {
   const navigate = useNavigate();
   const { data, activeLocal } = useApp();
   const hoy = toDateKey(new Date());
+  const [editando, setEditando] = useState(null);
 
   const cortesHoy = useMemo(() => {
     const scoped = filterByLocal(data.cortes, activeLocal);
@@ -28,6 +31,7 @@ export default function Agenda() {
           <p className="hint">
             {cortesHoy.length} cortes · {formatCurrency(total)} en total
           </p>
+          {cortesHoy.length > 0 && <p className="hint">Tocá un corte para editarlo o eliminarlo.</p>}
         </div>
       </div>
 
@@ -45,7 +49,14 @@ export default function Agenda() {
       ) : (
         <div className="stack-gap">
           {cortesHoy.map((c) => (
-            <div className="list-item-card" key={c.id}>
+            <div
+              className="list-item-card corte-editable"
+              key={c.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => setEditando(c)}
+              onKeyDown={(e) => e.key === 'Enter' && setEditando(c)}
+            >
               <div style={{ fontWeight: 700, width: 48 }}>{c.hora}</div>
               <Avatar name={peluqueroName(c.peluqueroId)} size={40} />
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -58,10 +69,13 @@ export default function Agenda() {
                   {c.pago === 'efectivo' ? 'Efectivo' : 'Transferencia'}
                 </Badge>
               </div>
+              <Pencil size={16} className="corte-editable-icon" aria-hidden="true" />
             </div>
           ))}
         </div>
       )}
+
+      {editando && <EditarCorteModal corte={editando} onClose={() => setEditando(null)} />}
 
       <button className="fab" onClick={() => navigate('/registrar')} aria-label="Registrar corte">
         +
