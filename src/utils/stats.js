@@ -107,7 +107,27 @@ export function computeMetrics(cortes) {
   };
 }
 
-export function rankPeluqueros(cortes, peluqueros) {
+// % de comisión de un corte: el especial del servicio si tiene (tinturas, reflejos...),
+// si no, el % de la ficha del peluquero.
+export function pctComisionCorte(corte, peluquero, servicios = []) {
+  const especial = servicios.find((s) => s.id === corte.servicioId)?.comisionPct;
+  return especial != null ? especial : Number(peluquero?.comision) || 0;
+}
+
+// Comisión total de cortes. Devuelve también cuánto viene de servicios especiales.
+export function comisionDeCortes(cortes, peluqueros = [], servicios = []) {
+  let total = 0;
+  let especial = 0;
+  for (const c of cortes) {
+    const p = peluqueros.find((x) => x.id === c.peluqueroId);
+    const monto = (Number(c.monto) || 0) * (pctComisionCorte(c, p, servicios) / 100);
+    total += monto;
+    if (servicios.find((s) => s.id === c.servicioId)?.comisionPct != null) especial += monto;
+  }
+  return { total, especial };
+}
+
+export function rankPeluqueros(cortes, peluqueros, servicios = []) {
   return peluqueros
     .map((p) => {
       const suyos = cortes.filter((c) => c.peluqueroId === p.id);
@@ -117,7 +137,7 @@ export function rankPeluqueros(cortes, peluqueros) {
         cantidad: suyos.length,
         monto,
         ticket: suyos.length ? monto / suyos.length : 0,
-        comision: monto * ((Number(p.comision) || 0) / 100),
+        comision: comisionDeCortes(suyos, [p], servicios).total,
       };
     })
     .filter((r) => r.cantidad > 0)

@@ -32,7 +32,14 @@ const mapLocal = (r) => ({
   activo: r.activo !== false,
 });
 
-const mapServicio = (r) => ({ id: r.id, nombre: r.nombre, precio: Number(r.precio) || 0, activo: r.activo });
+const mapServicio = (r) => ({
+  id: r.id,
+  nombre: r.nombre,
+  precio: Number(r.precio) || 0,
+  activo: r.activo,
+  // % de comisión especial del servicio; null = usa el % de la ficha del peluquero.
+  comisionPct: r.comision_pct == null ? null : Number(r.comision_pct),
+});
 
 const mapPeluquero = (r) => ({
   id: r.id,
@@ -554,6 +561,7 @@ export function AppProvider({ children }) {
         salon_id,
         nombre: servicio.nombre,
         precio: servicio.precio,
+        comision_pct: servicio.comisionPct ?? null,
         activo: true,
       });
       if (error) throw error;
@@ -568,6 +576,7 @@ export function AppProvider({ children }) {
       if (patch.nombre !== undefined) dbPatch.nombre = patch.nombre;
       if (patch.precio !== undefined) dbPatch.precio = patch.precio;
       if (patch.activo !== undefined) dbPatch.activo = patch.activo;
+      if (patch.comisionPct !== undefined) dbPatch.comision_pct = patch.comisionPct;
       const { error } = await supabase.from('servicios').update(dbPatch).eq('id', id);
       if (error) throw error;
       await refetch();

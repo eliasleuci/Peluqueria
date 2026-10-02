@@ -4,13 +4,13 @@ import Badge from './Badge';
 import EditarCorteModal from './EditarCorteModal';
 import Avatar from './Avatar';
 import { formatCurrency, formatDate, toDateKey } from '../utils/format';
-import { computeMetrics, rankServicios } from '../utils/stats';
+import { computeMetrics, rankServicios, comisionDeCortes } from '../utils/stats';
 
 // cortes: los cortes del peluquero ya filtrados por el período elegido.
 export default function PeluqueroResumen({ peluquero, cortes, servicios }) {
   const [editando, setEditando] = useState(null);
   const m = computeMetrics(cortes);
-  const comisionMonto = m.ingresos * ((Number(peluquero.comision) || 0) / 100);
+  const { total: comisionMonto, especial: comisionEspecial } = comisionDeCortes(cortes, [peluquero], servicios);
   const porServicio = rankServicios(cortes, servicios);
   const historial = [...cortes].sort((a, b) => (b.fecha + b.hora).localeCompare(a.fecha + a.hora));
   const servicioName = (id) => servicios.find((s) => s.id === id)?.nombre ?? '—';
@@ -48,8 +48,12 @@ export default function PeluqueroResumen({ peluquero, cortes, servicios }) {
           <div style={{ fontWeight: 700, fontSize: 20 }}>{formatCurrency(m.ticketPromedio)}</div>
         </div>
         <div className="card" style={{ background: 'var(--surface-elevated)' }}>
-          <div className="hint">Comisión ({peluquero.comision || 0}%)</div>
+          <div className="hint">Comisión</div>
           <div style={{ fontWeight: 700, fontSize: 20, color: 'var(--accent)' }}>{formatCurrency(comisionMonto)}</div>
+          <div className="hint">
+            {peluquero.comision || 0}% en cortes
+            {comisionEspecial > 0 ? ` · incluye ${formatCurrency(comisionEspecial)} de servicios especiales` : ''}
+          </div>
         </div>
       </div>
 

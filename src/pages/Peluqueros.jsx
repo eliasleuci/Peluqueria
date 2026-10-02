@@ -5,7 +5,7 @@ import Avatar from '../components/Avatar';
 import Modal from '../components/Modal';
 import { Clock } from 'lucide-react';
 import { formatCurrency, formatDate } from '../utils/format';
-import { cortesOfMonth, currentMonthKey, sumMonto } from '../utils/stats';
+import { cortesOfMonth, currentMonthKey, sumMonto, comisionDeCortes } from '../utils/stats';
 import HorarioSemanalEditor from '../components/HorarioSemanalEditor';
 import { semanaPorDefecto, validarSemana, resumenSemana, semanaDePeluquero } from '../utils/horarios';
 
@@ -496,7 +496,7 @@ export default function Peluqueros() {
 
 function DrawerContent({ peluquero, data, metricsFor }) {
   const m = metricsFor(peluquero);
-  const comisionMonto = m.monto * ((peluquero.comision || 0) / 100);
+  const { total: comisionMonto, especial: comisionEspecial } = comisionDeCortes(m.cortes, [peluquero], data.servicios);
   const porServicio = {};
   for (const c of m.cortes) {
     porServicio[c.servicioId] = (porServicio[c.servicioId] || 0) + 1;
@@ -510,6 +510,7 @@ function DrawerContent({ peluquero, data, metricsFor }) {
         <div className="flex-between">
           <span className="hint">
             {formatCurrency(m.monto)} × {peluquero.comision}%
+            {comisionEspecial > 0 ? ` (servicios especiales con su %)` : ''}
           </span>
           <strong style={{ color: 'var(--accent)', fontSize: 18 }}>{formatCurrency(comisionMonto)}</strong>
         </div>

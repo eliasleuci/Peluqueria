@@ -361,6 +361,19 @@ function ServiciosTab() {
     }
   }
 
+  // Vacío = usa el % de la ficha del peluquero; con valor = comisión especial de este servicio.
+  async function handleComisionChange(s, value) {
+    const limpio = String(value).trim();
+    const nuevoPct = limpio === '' ? null : Math.min(100, Math.max(0, Number(limpio) || 0));
+    if (nuevoPct === s.comisionPct) return;
+    try {
+      await updateServicio(s.id, { comisionPct: nuevoPct });
+      showToast(nuevoPct == null ? '✓ Usa la comisión de cada peluquero' : `✓ Comisión especial: ${nuevoPct}%`);
+    } catch (err) {
+      showToast(`Error: ${err.message ?? err}`, 'error');
+    }
+  }
+
   async function handleToggleActivo(s) {
     try {
       await updateServicio(s.id, { activo: !s.activo });
@@ -373,10 +386,15 @@ function ServiciosTab() {
     e.preventDefault();
     if (!nuevo.nombre.trim() || !nuevo.precio) return;
     try {
-      await addServicio({ nombre: nuevo.nombre.trim(), precio: Number(nuevo.precio) });
+      const pct = String(nuevo.comisionPct ?? '').trim();
+      await addServicio({
+        nombre: nuevo.nombre.trim(),
+        precio: Number(nuevo.precio),
+        comisionPct: pct === '' ? null : Math.min(100, Math.max(0, Number(pct) || 0)),
+      });
       showToast('✓ Servicio agregado');
       setShowAdd(false);
-      setNuevo({ nombre: '', precio: '' });
+      setNuevo({ nombre: '', precio: '', comisionPct: '' });
     } catch (err) {
       showToast(`Error: ${err.message ?? err}`, 'error');
     }
@@ -385,7 +403,10 @@ function ServiciosTab() {
   return (
     <div className="stack-gap">
       <div className="section-header">
-        <div />
+        <p className="hint" style={{ maxWidth: 520 }}>
+          <strong>Comisión especial:</strong> dejala vacía en los servicios comunes (usan el % de cada peluquero). Para
+          tinturas, reflejos y trabajos especiales poné el % que se lleva el peluquero.
+        </p>
         <button className="btn btn-primary" onClick={() => setShowAdd(true)}>
           + Agregar servicio
         </button>
@@ -397,6 +418,7 @@ function ServiciosTab() {
               <tr>
                 <th>Servicio</th>
                 <th>Precio base</th>
+                <th>Comisión especial</th>
                 <th>Estado</th>
                 <th></th>
               </tr>
@@ -413,6 +435,21 @@ function ServiciosTab() {
                         value={s.precio}
                         onChange={(e) => handlePrecioChange(s.id, e.target.value)}
                       />
+                    </td>
+                    <td data-label="Comisión especial">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          style={{ width: 80 }}
+                          placeholder="—"
+                          defaultValue={s.comisionPct ?? ''}
+                          onBlur={(e) => handleComisionChange(s, e.target.value)}
+                          aria-label={`Comisión especial de ${s.nombre}`}
+                        />
+                        <span className="hint">%</span>
+                      </div>
                     </td>
                     <td data-label="Estado">{s.activo ? 'Activo' : 'Inactivo'}</td>
                     <td data-label="Acciones">
@@ -436,7 +473,7 @@ function ServiciosTab() {
                   </tr>
                   {expandido === s.id && (
                     <tr>
-                      <td colSpan={4} style={{ background: 'var(--surface-elevated)' }}>
+                      <td colSpan={5} style={{ background: 'var(--surface-elevated)' }}>
                         <PreciosLocalEditor
                           servicio={s}
                           locales={localesActivos}
@@ -502,6 +539,18 @@ function ServiciosTab() {
                 value={nuevo.precio}
                 onChange={(e) => setNuevo({ ...nuevo, precio: e.target.value })}
               />
+            </div>
+            <div className="field">
+              <label>Comisión especial (%) — opcional</label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                placeholder="Vacío = la comisión de cada peluquero"
+                value={nuevo.comisionPct ?? ''}
+                onChange={(e) => setNuevo({ ...nuevo, comisionPct: e.target.value })}
+              />
+              <span className="hint">Para tinturas, reflejos y trabajos especiales que dejan un % distinto.</span>
             </div>
           </form>
         </Modal>

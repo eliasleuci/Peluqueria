@@ -74,7 +74,7 @@ function LocalDetalle({ local, periodCortes, peluqueros, servicios, period, onSe
   const cortes = periodCortes.filter((c) => String(c.localId) === String(local.id));
   const m = computeMetrics(cortes);
   const delPelu = peluqueros.filter((p) => String(p.localId) === String(local.id));
-  const ranking = rankPeluqueros(cortes, delPelu);
+  const ranking = rankPeluqueros(cortes, delPelu, servicios);
   const servicioRank = rankServicios(cortes, servicios);
   const metaPct = local.metaMensual ? Math.min(100, (m.ingresos / local.metaMensual) * 100) : null;
 

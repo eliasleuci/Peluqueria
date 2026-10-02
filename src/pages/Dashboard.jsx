@@ -12,6 +12,7 @@ import {
   periodRange,
   computeMetrics,
   rankPeluqueros,
+  comisionDeCortes,
   rankServicios,
   pctChange,
 } from '../utils/stats';
@@ -47,10 +48,10 @@ export default function Dashboard() {
   const m = useMemo(() => computeMetrics(cortesPeriodo), [cortesPeriodo]);
   const mPrev = useMemo(() => computeMetrics(cortesPeriodoPrev), [cortesPeriodoPrev]);
 
-  const comisiones = useMemo(() => {
-    const byId = Object.fromEntries(peluqueros.map((p) => [p.id, Number(p.comision) || 0]));
-    return cortesPeriodo.reduce((acc, c) => acc + (Number(c.monto) || 0) * ((byId[c.peluqueroId] || 0) / 100), 0);
-  }, [cortesPeriodo, peluqueros]);
+  const comisiones = useMemo(
+    () => comisionDeCortes(cortesPeriodo, peluqueros, servicios).total,
+    [cortesPeriodo, peluqueros, servicios]
+  );
 
   const scopedPeluqueros = useMemo(
     () =>
@@ -61,8 +62,8 @@ export default function Dashboard() {
   );
 
   const ranking = useMemo(
-    () => rankPeluqueros(cortesPeriodo, scopedPeluqueros),
-    [cortesPeriodo, scopedPeluqueros]
+    () => rankPeluqueros(cortesPeriodo, scopedPeluqueros, servicios),
+    [cortesPeriodo, scopedPeluqueros, servicios]
   );
 
   const servicioRank = useMemo(() => rankServicios(cortesPeriodo, servicios), [cortesPeriodo, servicios]);
