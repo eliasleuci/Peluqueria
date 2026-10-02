@@ -557,13 +557,10 @@ export function AppProvider({ children }) {
   const addServicio = useCallback(
     async (servicio) => {
       const salon_id = assertSalon();
-      const { error } = await supabase.from('servicios').insert({
-        salon_id,
-        nombre: servicio.nombre,
-        precio: servicio.precio,
-        comision_pct: servicio.comisionPct ?? null,
-        activo: true,
-      });
+      const fila = { salon_id, nombre: servicio.nombre, precio: servicio.precio, activo: true };
+      // Solo se envía si se cargó: así el alta no depende de la columna comision_pct (migración 0022).
+      if (servicio.comisionPct != null) fila.comision_pct = servicio.comisionPct;
+      const { error } = await supabase.from('servicios').insert(fila);
       if (error) throw error;
       await refetch();
     },

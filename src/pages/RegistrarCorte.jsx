@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -25,6 +25,9 @@ export default function RegistrarCorte() {
 
   const [form, setForm] = useState(() => emptyForm(miPeluqueroId));
   const [errors, setErrors] = useState({});
+  const [guardando, setGuardando] = useState(false);
+  // Ref además del estado: bloquea un doble toque antes de que React vuelva a renderizar.
+  const enviandoRef = useRef(false);
 
   const peluquerosActivos = data.peluqueros.filter(
     (p) => p.activo && (activeLocal === 'all' || String(p.localId) === String(activeLocal)),
@@ -70,7 +73,9 @@ export default function RegistrarCorte() {
 
   async function handleSubmit(ev) {
     ev.preventDefault();
-    if (!validate()) return;
+    if (enviandoRef.current || !validate()) return;
+    enviandoRef.current = true;
+    setGuardando(true);
     try {
       await addCorte({
         localId: local.id,
@@ -88,6 +93,9 @@ export default function RegistrarCorte() {
       setForm(emptyForm(esPeluquero ? miPeluqueroId : form.peluqueroId));
     } catch (err) {
       showToast(`Error al guardar: ${err.message ?? err}`, 'error');
+    } finally {
+      enviandoRef.current = false;
+      setGuardando(false);
     }
   }
 
@@ -171,8 +179,8 @@ export default function RegistrarCorte() {
           </div>
         </div>
 
-        <button type="submit" className="btn btn-primary" style={{ marginTop: 8 }}>
-          Guardar corte · {formatCurrency(precio)}
+        <button type="submit" className="btn btn-primary" style={{ marginTop: 8 }} disabled={guardando}>
+          {guardando ? 'Guardando…' : <>Guardar corte · {formatCurrency(precio)}</>}
         </button>
       </form>
     </div>
