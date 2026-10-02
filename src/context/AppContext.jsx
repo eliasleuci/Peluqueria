@@ -118,6 +118,8 @@ const mapCorte = (r) => ({
   pago: r.pago,
   notas: r.notas ?? '',
   createdBy: r.created_by,
+  // % de comisión congelado al registrar el corte (null = corte viejo sin congelar).
+  comisionPct: r.comision_pct == null ? null : Number(r.comision_pct),
 });
 
 async function fetchAll(salonId) {
@@ -295,6 +297,7 @@ export function AppProvider({ children }) {
       if (patch.hora !== undefined) dbPatch.hora = patch.hora;
       if (patch.peluqueroId !== undefined) dbPatch.peluquero_id = patch.peluqueroId;
       if (patch.localId !== undefined) dbPatch.local_id = patch.localId;
+      if (patch.comisionPct !== undefined) dbPatch.comision_pct = patch.comisionPct;
       const { data: actualizados, error } = await supabase.from('cortes').update(dbPatch).eq('id', id).select('id');
       if (error) throw error;
       // Si la RLS no deja modificarlo, Supabase no da error: simplemente no actualiza filas.

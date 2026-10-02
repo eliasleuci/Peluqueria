@@ -405,7 +405,8 @@ function ServiciosTab() {
       <div className="section-header">
         <p className="hint" style={{ maxWidth: 520 }}>
           <strong>Comisión especial:</strong> dejala vacía en los servicios comunes (usan el % de cada peluquero). Para
-          tinturas, reflejos y trabajos especiales poné el % que se lleva el peluquero.
+          tinturas, reflejos y trabajos especiales poné el % que se lleva el peluquero. Los cambios de % aplican a
+          los trabajos nuevos: los ya registrados conservan su comisión.
         </p>
         <button className="btn btn-primary" onClick={() => setShowAdd(true)}>
           + Agregar servicio

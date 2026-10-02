@@ -107,11 +107,18 @@ export function computeMetrics(cortes) {
   };
 }
 
-// % de comisión de un corte: el especial del servicio si tiene (tinturas, reflejos...),
-// si no, el % de la ficha del peluquero.
-export function pctComisionCorte(corte, peluquero, servicios = []) {
-  const especial = servicios.find((s) => s.id === corte.servicioId)?.comisionPct;
+// % de comisión VIGENTE hoy para un servicio y peluquero: el especial del servicio si tiene
+// (tinturas, reflejos...), si no, el % de la ficha del peluquero.
+export function pctComisionVigente(servicioId, peluquero, servicios = []) {
+  const especial = servicios.find((s) => s.id === servicioId)?.comisionPct;
   return especial != null ? especial : Number(peluquero?.comision) || 0;
+}
+
+// % de comisión de un corte: el que quedó congelado al registrarlo; si es un corte viejo sin
+// congelar, el vigente.
+export function pctComisionCorte(corte, peluquero, servicios = []) {
+  if (corte.comisionPct != null) return corte.comisionPct;
+  return pctComisionVigente(corte.servicioId, peluquero, servicios);
 }
 
 // Comisión total de cortes. Devuelve también cuánto viene de servicios especiales.

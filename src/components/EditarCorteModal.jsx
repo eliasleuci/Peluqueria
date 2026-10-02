@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { formatCurrency, formatDate } from '../utils/format';
 import { precioServicioEnLocal } from '../utils/precios';
+import { pctComisionCorte, pctComisionVigente } from '../utils/stats';
 
 // Editar o borrar un corte ya registrado (para corregir errores).
 // El dueño puede cambiar también el peluquero; el peluquero solo sus propios cortes (RLS).
@@ -23,6 +24,7 @@ export default function EditarCorteModal({ corte, onClose }) {
     hora: corte.hora,
   });
   const [guardando, setGuardando] = useState(false);
+  const [usarPctVigente, setUsarPctVigente] = useState(false);
   const [confirmarBorrado, setConfirmarBorrado] = useState(false);
 
   const peluquero = data.peluqueros.find((p) => p.id === form.peluqueroId);
@@ -30,6 +32,13 @@ export default function EditarCorteModal({ corte, onClose }) {
   const servicios = data.servicios.filter((s) => s.activo || s.id === corte.servicioId);
   const peluquerosElegibles = data.peluqueros.filter((p) => p.activo || p.id === corte.peluqueroId);
   const precio = Number(form.precio) || 0;
+
+  // Comisión: queda congelada en el corte. Si cambia el servicio o el peluquero se recalcula con
+  // el % vigente; si no, se mantiene, salvo que se pida actualizarla a mano.
+  const cambioServicioOPeluquero = form.servicioId !== corte.servicioId || form.peluqueroId !== corte.peluqueroId;
+  const pctCongelado = pctComisionCorte(corte, data.peluqueros.find((p) => p.id === corte.peluqueroId), data.servicios);
+  const pctVigente = pctComisionVigente(form.servicioId, peluquero, data.servicios);
+  const pctFinal = cambioServicioOPeluquero || usarPctVigente ? pctVigente : pctCongelado;
 
   const update = (patch) => setForm((prev) => ({ ...prev, ...patch }));
 
@@ -54,6 +63,7 @@ export default function EditarCorteModal({ corte, onClose }) {
         fecha: form.fecha,
         hora: form.hora,
       };
+      if (usarPctVigente && !cambioServicioOPeluquero) patch.comisionPct = pctVigente;
       if (esDueno && form.peluqueroId !== corte.peluqueroId) {
         patch.peluqueroId = form.peluqueroId;
         patch.localId = localId;
@@ -178,6 +188,30 @@ export default function EditarCorteModal({ corte, onClose }) {
               Transferencia
             </button>
           </div>
+        </div>
+
+        <div className="card" style={{ background: 'var(--surface-elevated)', padding: 14 }}>
+          <div className="flex-between" style={{ gap: 8 }}>
+            <span className="hint">Comisión de este trabajo</span>
+            <strong style={{ color: 'var(--accent)' }}>
+              {pctFinal}% · {formatCurrency((precio * pctFinal) / 100)}
+            </strong>
+          </div>
+          {cambioServicioOPeluquero ? (
+            <p className="hint" style={{ marginTop: 6 }}>Se recalcula con el % vigente porque cambiaste el servicio o el peluquero.</p>
+          ) : pctVigente !== pctCongelado ? (
+            <label className="hint" style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
+              <input
+                type="checkbox"
+                checked={usarPctVigente}
+                onChange={(e) => setUsarPctVigente(e.target.checked)}
+                style={{ width: 'auto' }}
+              />
+              Quedó registrado con {pctCongelado}%. Actualizar al % vigente ({pctVigente}%)
+            </label>
+          ) : (
+            <p className="hint" style={{ marginTop: 6 }}>Quedó registrada al hacer el trabajo y no cambia si después se modifica el %.</p>
+          )}
         </div>
 
         <div className="grid grid-2">

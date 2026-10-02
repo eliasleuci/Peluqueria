@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { toDateKey, nowTimeKey, formatCurrency } from '../utils/format';
 import { precioServicioEnLocal } from '../utils/precios';
-import { pctComisionCorte } from '../utils/stats';
+import { pctComisionVigente } from '../utils/stats';
 
 function emptyForm(peluqueroId) {
   return {
@@ -37,7 +37,7 @@ export default function RegistrarCorte() {
   const local = data.locales.find((l) => l.id === peluquero?.localId);
   const precio = Number(form.precio) || 0;
   const servicioElegido = data.servicios.find((s) => s.id === form.servicioId);
-  const pctComision = servicioElegido ? pctComisionCorte({ servicioId: servicioElegido.id }, peluquero, data.servicios) : 0;
+  const pctComision = servicioElegido ? pctComisionVigente(servicioElegido.id, peluquero, data.servicios) : 0;
 
   function update(patch) {
     setForm((prev) => ({ ...prev, ...patch }));

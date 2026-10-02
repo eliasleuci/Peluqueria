@@ -299,6 +299,9 @@ export default function Peluqueros() {
                   value={form.comision}
                   onChange={(e) => setForm({ ...form, comision: e.target.value })}
                 />
+                {editTarget && (
+                  <span className="hint">Si lo cambiás, aplica a los cortes nuevos; los anteriores conservan su comisión.</span>
+                )}
               </div>
               <div className="field">
                 <label>Fecha de ingreso</label>
