@@ -4,8 +4,10 @@ import { useToast } from '../context/ToastContext';
 import Avatar from '../components/Avatar';
 import Modal from '../components/Modal';
 import { Clock } from 'lucide-react';
-import { formatCurrency, formatDate } from '../utils/format';
-import { cortesOfMonth, currentMonthKey, sumMonto, comisionDeCortes } from '../utils/stats';
+import { formatCurrency, toDateKey } from '../utils/format';
+import PeriodSelector from '../components/PeriodSelector';
+import PeluqueroResumen from '../components/PeluqueroResumen';
+import { cortesOfMonth, currentMonthKey, sumMonto, filterByRange, periodRange } from '../utils/stats';
 import HorarioSemanalEditor from '../components/HorarioSemanalEditor';
 import { semanaPorDefecto, validarSemana, resumenSemana, semanaDePeluquero } from '../utils/horarios';
 
@@ -489,7 +491,7 @@ export default function Peluqueros() {
                 </div>
               )}
             </div>
-            <DrawerContent peluquero={selected} data={data} metricsFor={metricsFor} />
+            <DrawerContent key={selected.id} peluquero={selected} data={data} />
           </div>
         </div>
       )}
@@ -497,75 +499,19 @@ export default function Peluqueros() {
   );
 }
 
-function DrawerContent({ peluquero, data, metricsFor }) {
-  const m = metricsFor(peluquero);
-  const { total: comisionMonto, especial: comisionEspecial } = comisionDeCortes(m.cortes, [peluquero], data.servicios);
-  const porServicio = {};
-  for (const c of m.cortes) {
-    porServicio[c.servicioId] = (porServicio[c.servicioId] || 0) + 1;
-  }
-  const servicioName = (id) => data.servicios.find((s) => s.id === id)?.nombre ?? '—';
-
+function DrawerContent({ peluquero, data }) {
+  const hoy = toDateKey(new Date());
+  const [periodo, setPeriodo] = useState({ period: 'mes', custom: { from: hoy, to: hoy } });
+  const rango = periodRange(periodo.period, 0, periodo.custom);
+  const cortes = filterByRange(
+    data.cortes.filter((c) => c.peluqueroId === peluquero.id),
+    rango.from,
+    rango.to
+  );
   return (
     <div className="stack-gap">
-      <div className="card">
-        <div className="card-title">Comisión del mes</div>
-        <div className="flex-between">
-          <span className="hint">
-            {formatCurrency(m.monto)} × {peluquero.comision}%
-            {comisionEspecial > 0 ? ` (servicios especiales con su %)` : ''}
-          </span>
-          <strong style={{ color: 'var(--accent)', fontSize: 18 }}>{formatCurrency(comisionMonto)}</strong>
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="card-title">Resumen por servicio</div>
-        <div className="stack-gap" style={{ gap: 8 }}>
-          {Object.entries(porServicio)
-            .sort((a, b) => b[1] - a[1])
-            .map(([sid, count]) => (
-              <div className="flex-between" key={sid}>
-                <span>{servicioName(sid)}</span>
-                <span className="hint">{count} veces</span>
-              </div>
-            ))}
-          {Object.keys(porServicio).length === 0 && <p className="text-secondary">Sin registros este mes.</p>}
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="card-title">Historial del mes</div>
-        <div className="table-wrap">
-          <table className="table-responsive">
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Servicio</th>
-                <th>Monto</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...m.cortes]
-                .sort((a, b) => b.fecha.localeCompare(a.fecha))
-                .map((c) => (
-                  <tr key={c.id}>
-                    <td data-label="Fecha">{formatDate(c.fecha)}</td>
-                    <td data-label="Servicio">{servicioName(c.servicioId)}</td>
-                    <td data-label="Monto">{formatCurrency(c.monto)}</td>
-                  </tr>
-                ))}
-              {m.cortes.length === 0 && (
-                <tr>
-                  <td colSpan={3} className="text-secondary">
-                    Sin registros.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <PeriodSelector period={periodo.period} custom={periodo.custom} onChange={setPeriodo} />
+      <PeluqueroResumen peluquero={peluquero} cortes={cortes} servicios={data.servicios} />
     </div>
   );
 }

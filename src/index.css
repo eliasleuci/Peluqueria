@@ -1081,3 +1081,26 @@ input[readonly] {
   flex-shrink: 0;
   margin-left: -4px;
 }
+
+/* --- Historial: filtros y scroll interno --- */
+.historial-filtros {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.historial-scroll {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 4px;
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 640px) {
+  .historial-filtros {
+    grid-template-columns: 1fr 1fr;
+  }
+  .historial-filtros select:first-child {
+    grid-column: 1 / -1;
+  }
+}

@@ -9,10 +9,21 @@ import { computeMetrics, rankServicios, comisionDeCortes } from '../utils/stats'
 // cortes: los cortes del peluquero ya filtrados por el período elegido.
 export default function PeluqueroResumen({ peluquero, cortes, servicios }) {
   const [editando, setEditando] = useState(null);
+  const [filtro, setFiltro] = useState({ servicio: '', pago: '', dia: '' });
   const m = computeMetrics(cortes);
   const { total: comisionMonto, especial: comisionEspecial } = comisionDeCortes(cortes, [peluquero], servicios);
   const porServicio = rankServicios(cortes, servicios);
-  const historial = [...cortes].sort((a, b) => (b.fecha + b.hora).localeCompare(a.fecha + a.hora));
+  const filtrados = cortes.filter(
+    (c) =>
+      (!filtro.servicio || c.servicioId === filtro.servicio) &&
+      (!filtro.pago || c.pago === filtro.pago) &&
+      (!filtro.dia || c.fecha === filtro.dia)
+  );
+  const hayFiltro = filtro.servicio || filtro.pago || filtro.dia;
+  const totalFiltrado = filtrados.reduce((a, c) => a + (Number(c.monto) || 0), 0);
+  const fechasDisponibles = [...new Set(cortes.map((c) => c.fecha))].sort().reverse();
+  const serviciosUsados = servicios.filter((sv) => cortes.some((c) => c.servicioId === sv.id));
+  const historial = [...filtrados].sort((a, b) => (b.fecha + b.hora).localeCompare(a.fecha + a.hora));
   const servicioName = (id) => servicios.find((s) => s.id === id)?.nombre ?? '—';
 
   // Agrupado por día (más reciente primero), con el mismo diseño de la Agenda del día.
@@ -74,15 +85,52 @@ export default function PeluqueroResumen({ peluquero, cortes, servicios }) {
 
       <div className="card">
         <div className="card-title">Historial</div>
-        {dias.length > 0 && (
-          <p className="hint" style={{ marginTop: -8, marginBottom: 12 }}>
-            Tocá un corte para editarlo o eliminarlo.
-          </p>
+        {cortes.length > 0 && (
+          <div className="historial-filtros">
+            <select value={filtro.dia} onChange={(e) => setFiltro({ ...filtro, dia: e.target.value })} aria-label="Día">
+              <option value="">Todos los días</option>
+              {fechasDisponibles.map((f) => (
+                <option key={f} value={f}>
+                  {tituloDia(f)}
+                </option>
+              ))}
+            </select>
+            <select
+              value={filtro.servicio}
+              onChange={(e) => setFiltro({ ...filtro, servicio: e.target.value })}
+              aria-label="Servicio"
+            >
+              <option value="">Todos los servicios</option>
+              {serviciosUsados.map((sv) => (
+                <option key={sv.id} value={sv.id}>
+                  {sv.nombre}
+                </option>
+              ))}
+            </select>
+            <select value={filtro.pago} onChange={(e) => setFiltro({ ...filtro, pago: e.target.value })} aria-label="Pago">
+              <option value="">Todo pago</option>
+              <option value="efectivo">Efectivo</option>
+              <option value="transferencia">Transferencia</option>
+            </select>
+          </div>
+        )}
+        {cortes.length > 0 && (
+          <div className="flex-between hint" style={{ margin: '10px 0', gap: 8, flexWrap: 'wrap' }}>
+            <span>
+              {filtrados.length} {filtrados.length === 1 ? 'corte' : 'cortes'} · {formatCurrency(totalFiltrado)}
+              {hayFiltro ? ' (filtrado)' : ''} · tocá uno para editarlo
+            </span>
+            {hayFiltro && (
+              <button className="btn btn-ghost btn-sm" onClick={() => setFiltro({ servicio: '', pago: '', dia: '' })}>
+                Limpiar filtros
+              </button>
+            )}
+          </div>
         )}
         {dias.length === 0 ? (
-          <p className="text-secondary">Sin registros en el período.</p>
+          <p className="text-secondary">{cortes.length ? 'Ningún corte coincide con el filtro.' : 'Sin registros en el período.'}</p>
         ) : (
-          <div className="stack-gap" style={{ gap: 18 }}>
+          <div className="stack-gap historial-scroll" style={{ gap: 18 }}>
             {dias.map((d) => (
               <div key={d.fecha} className="stack-gap" style={{ gap: 8 }}>
                 <div className="flex-between">
