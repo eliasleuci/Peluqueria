@@ -15,7 +15,7 @@ export default function PeriodSelector({ period, custom, onChange }) {
 
   return (
     <div className="stack-gap" style={{ gap: 10 }}>
-      <div className="tabs" style={{ marginBottom: 0, borderBottom: 'none' }}>
+      <div className="tabs period-tabs" style={{ marginBottom: 0, borderBottom: 'none' }}>
         {OPCIONES.map((o) => (
           <button
             key={o.key}

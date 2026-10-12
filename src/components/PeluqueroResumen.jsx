@@ -45,7 +45,7 @@ export default function PeluqueroResumen({ peluquero, cortes, servicios }) {
 
   return (
     <div className="stack-gap">
-      <div className="grid grid-2">
+      <div className="grid grid-2 kpi-grid">
         <div className="card" style={{ background: 'var(--surface-elevated)' }}>
           <div className="hint">Facturado</div>
           <div style={{ fontWeight: 700, fontSize: 20 }}>{formatCurrency(m.ingresos)}</div>

@@ -1104,3 +1104,24 @@ input[readonly] {
     grid-column: 1 / -1;
   }
 }
+
+/* Selector de período: las 4 opciones entran sin scroll en pantallas angostas. */
+.period-tabs {
+  overflow: visible;
+}
+.period-tabs .tab-btn {
+  flex: 1;
+  padding: 10px 6px;
+  text-align: center;
+}
+
+/* Tarjetas de resumen: 2 por fila también en el celular. */
+@media (max-width: 640px) {
+  .kpi-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .kpi-grid .card {
+    padding: 14px;
+  }
+}
