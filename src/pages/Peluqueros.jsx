@@ -446,6 +446,14 @@ export default function Peluqueros() {
                 ×
               </button>
             </div>
+            <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+              <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => openEditModal(selected)}>
+                Editar
+              </button>
+              <button className="btn btn-danger" style={{ flex: 1 }} onClick={() => setToDelete(selected)}>
+                Eliminar peluquero
+              </button>
+            </div>
             <div className="card" style={{ marginBottom: 16 }}>
               <div className="card-title">Acceso al sistema</div>
               {selected.authUserId ? (
@@ -482,14 +490,6 @@ export default function Peluqueros() {
               )}
             </div>
             <DrawerContent peluquero={selected} data={data} metricsFor={metricsFor} />
-            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-              <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => openEditModal(selected)}>
-                Editar
-              </button>
-              <button className="btn btn-danger" style={{ flex: 1 }} onClick={() => setToDelete(selected)}>
-                Eliminar peluquero
-              </button>
-            </div>
           </div>
         </div>
       )}
