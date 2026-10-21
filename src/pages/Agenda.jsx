@@ -2,11 +2,11 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import Avatar from '../components/Avatar';
-import Badge from '../components/Badge';
 import EditarCorteModal from '../components/EditarCorteModal';
 import { Pencil } from 'lucide-react';
 import { formatCurrency, formatDate, toDateKey } from '../utils/format';
 import { filterByLocal, sumMonto } from '../utils/stats';
+import PagoBadge from '../components/PagoBadge';
 
 export default function Agenda() {
   const navigate = useNavigate();
@@ -65,9 +65,7 @@ export default function Agenda() {
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontWeight: 700 }}>{formatCurrency(c.monto)}</div>
-                <Badge color={c.pago === 'efectivo' ? 'green' : 'blue'}>
-                  {c.pago === 'efectivo' ? 'Efectivo' : 'Transferencia'}
-                </Badge>
+                <PagoBadge item={c} conCliente />
               </div>
               <Pencil size={16} className="corte-editable-icon" aria-hidden="true" />
             </div>

@@ -4,6 +4,7 @@ import { useToast } from '../context/ToastContext';
 import Modal from '../components/Modal';
 import { formatCurrency, formatDate } from '../utils/format';
 import { filterByLocal } from '../utils/stats';
+import { pagoBadge, desglosePago } from '../utils/pagos';
 import HorarioSemanalEditor from '../components/HorarioSemanalEditor';
 import { semanaPorDefecto, validarSemana, resumenSemana } from '../utils/horarios';
 
@@ -644,7 +645,22 @@ function DatosTab() {
     const peluqueroName = (id) => data.peluqueros.find((p) => p.id === id)?.nombre ?? '—';
     const servicioName = (id) => data.servicios.find((s) => s.id === id)?.nombre ?? '—';
 
-    const header = ['Fecha', 'Hora', 'Local', 'Peluquero', 'Servicio', 'Precio', 'Descuento %', 'Monto', 'Pago', 'Notas'];
+    const header = [
+      'Fecha',
+      'Hora',
+      'Local',
+      'Peluquero',
+      'Servicio',
+      'Precio',
+      'Descuento %',
+      'Monto',
+      'Pago',
+      'Efectivo',
+      'Transferencia',
+      'Cliente (a cobrar)',
+      'Cobrado el',
+      'Notas',
+    ];
     const montoIndex = header.indexOf('Monto');
     const rows = [...cortes]
       .sort((a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora))
@@ -657,7 +673,11 @@ function DatosTab() {
         c.precio,
         c.descuento,
         c.monto,
-        c.pago === 'efectivo' ? 'Efectivo' : 'Transferencia',
+        pagoBadge(c).label,
+        desglosePago(c).efectivo,
+        desglosePago(c).transferencia,
+        c.pago === 'a_cobrar' ? c.clienteNombre : '',
+        c.cobradoFecha ? formatDate(c.cobradoFecha) : '',
         c.notas,
       ]);
 

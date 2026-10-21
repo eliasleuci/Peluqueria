@@ -5,6 +5,8 @@ import { useToast } from '../context/ToastContext';
 import { toDateKey, nowTimeKey, formatCurrency } from '../utils/format';
 import { precioServicioEnLocal } from '../utils/precios';
 import { pctComisionVigente } from '../utils/stats';
+import PagoSelector from '../components/PagoSelector';
+import { pagoInicial, validarPago, camposPago } from '../utils/pagos';
 
 function emptyForm(peluqueroId) {
   return {
@@ -12,7 +14,6 @@ function emptyForm(peluqueroId) {
     peluqueroId: peluqueroId ?? '',
     servicioId: '',
     precio: '',
-    pago: 'efectivo',
   };
 }
 
@@ -25,6 +26,7 @@ export default function RegistrarCorte() {
 
   const [form, setForm] = useState(() => emptyForm(miPeluqueroId));
   const [errors, setErrors] = useState({});
+  const [pagoEstado, setPagoEstado] = useState(pagoInicial);
   const [guardando, setGuardando] = useState(false);
   // Ref además del estado: bloquea un doble toque antes de que React vuelva a renderizar.
   const enviandoRef = useRef(false);
@@ -68,7 +70,13 @@ export default function RegistrarCorte() {
     if (!form.servicioId) e.servicioId = true;
     if (precio <= 0) e.precio = true;
     setErrors(e);
-    return Object.keys(e).length === 0;
+    if (Object.keys(e).length) return false;
+    const errorPago = validarPago(pagoEstado, precio);
+    if (errorPago) {
+      showToast(errorPago, 'error');
+      return false;
+    }
+    return true;
   }
 
   async function handleSubmit(ev) {
@@ -86,11 +94,12 @@ export default function RegistrarCorte() {
         precio,
         descuento: 0,
         monto: precio,
-        pago: form.pago,
+        ...camposPago(pagoEstado, precio),
         notas: '',
       });
       showToast(`✓ Corte registrado — ${formatCurrency(precio)}`);
       setForm(emptyForm(esPeluquero ? miPeluqueroId : form.peluqueroId));
+      setPagoEstado(pagoInicial());
     } catch (err) {
       showToast(`Error al guardar: ${err.message ?? err}`, 'error');
     } finally {
@@ -159,25 +168,7 @@ export default function RegistrarCorte() {
           <input type="number" min="0" value={form.precio} onChange={(e) => update({ precio: e.target.value })} />
         </div>
 
-        <div className="field">
-          <label>Forma de pago</label>
-          <div className="toggle-group">
-            <button
-              type="button"
-              className={`toggle-btn ${form.pago === 'efectivo' ? 'active' : ''}`}
-              onClick={() => update({ pago: 'efectivo' })}
-            >
-              💵 Efectivo
-            </button>
-            <button
-              type="button"
-              className={`toggle-btn ${form.pago === 'transferencia' ? 'active' : ''}`}
-              onClick={() => update({ pago: 'transferencia' })}
-            >
-              📲 Transferencia
-            </button>
-          </div>
-        </div>
+        <PagoSelector value={pagoEstado} onChange={setPagoEstado} monto={precio} />
 
         <button type="submit" className="btn btn-primary" style={{ marginTop: 8 }} disabled={guardando}>
           {guardando ? 'Guardando…' : <>Guardar corte · {formatCurrency(precio)}</>}

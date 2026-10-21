@@ -1,4 +1,5 @@
 import { toDateKey } from './format';
+import { desglosePago, estaPendiente } from './pagos';
 
 export function filterByLocal(items, localId) {
   if (localId === 'all') return items;
@@ -92,14 +93,23 @@ export function periodRange(period, offset = 0, custom = null) {
 export function computeMetrics(cortes) {
   const ingresos = sumMonto(cortes);
   const cantidad = cortes.length;
-  const efectivo = sumMonto(cortes.filter((c) => c.pago === 'efectivo'));
-  const transferencia = sumMonto(cortes.filter((c) => c.pago === 'transferencia'));
+  // Plata que entró por cada medio (un pago mixto suma a los dos; un "a cobrar" pendiente, a ninguno).
+  let efectivo = 0;
+  let transferencia = 0;
+  let aCobrar = 0;
+  for (const c of cortes) {
+    const d = desglosePago(c);
+    efectivo += d.efectivo;
+    transferencia += d.transferencia;
+    if (estaPendiente(c)) aCobrar += Number(c.monto) || 0;
+  }
   const descuentos = cortes.reduce((acc, c) => acc + (Number(c.descuento) || 0), 0);
   return {
     ingresos,
     cantidad,
     efectivo,
     transferencia,
+    aCobrar,
     descuentos,
     ticketPromedio: cantidad ? ingresos / cantidad : 0,
     efectivoPct: ingresos ? (efectivo / ingresos) * 100 : 0,

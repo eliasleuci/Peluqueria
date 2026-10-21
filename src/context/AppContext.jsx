@@ -103,6 +103,12 @@ const mapVenta = (r) => ({
   fecha: r.fecha,
   hora: (r.hora ?? '').slice(0, 5),
   createdBy: r.created_by,
+  // Desglose del pago y datos de "a cobrar" (migración 0024).
+  montoEfectivo: r.monto_efectivo == null ? null : Number(r.monto_efectivo),
+  montoTransferencia: r.monto_transferencia == null ? null : Number(r.monto_transferencia),
+  clienteNombre: r.cliente_nombre ?? '',
+  cobradoFecha: r.cobrado_fecha ?? null,
+  cobroPago: r.cobro_pago ?? null,
 });
 
 const mapCorte = (r) => ({
@@ -120,6 +126,12 @@ const mapCorte = (r) => ({
   createdBy: r.created_by,
   // % de comisión congelado al registrar el corte (null = corte viejo sin congelar).
   comisionPct: r.comision_pct == null ? null : Number(r.comision_pct),
+  // Desglose del pago y datos de "a cobrar" (migración 0024).
+  montoEfectivo: r.monto_efectivo == null ? null : Number(r.monto_efectivo),
+  montoTransferencia: r.monto_transferencia == null ? null : Number(r.monto_transferencia),
+  clienteNombre: r.cliente_nombre ?? '',
+  cobradoFecha: r.cobrado_fecha ?? null,
+  cobroPago: r.cobro_pago ?? null,
 });
 
 async function fetchAll(salonId) {
@@ -275,6 +287,9 @@ export function AppProvider({ children }) {
         descuento: corte.descuento,
         monto: corte.monto,
         pago: corte.pago,
+        monto_efectivo: corte.montoEfectivo ?? null,
+        monto_transferencia: corte.montoTransferencia ?? null,
+        cliente_nombre: corte.clienteNombre || null,
         notas: corte.notas || null,
         created_by: user?.id,
       });
@@ -298,6 +313,11 @@ export function AppProvider({ children }) {
       if (patch.peluqueroId !== undefined) dbPatch.peluquero_id = patch.peluqueroId;
       if (patch.localId !== undefined) dbPatch.local_id = patch.localId;
       if (patch.comisionPct !== undefined) dbPatch.comision_pct = patch.comisionPct;
+      if (patch.montoEfectivo !== undefined) dbPatch.monto_efectivo = patch.montoEfectivo;
+      if (patch.montoTransferencia !== undefined) dbPatch.monto_transferencia = patch.montoTransferencia;
+      if (patch.clienteNombre !== undefined) dbPatch.cliente_nombre = patch.clienteNombre || null;
+      if (patch.cobradoFecha !== undefined) dbPatch.cobrado_fecha = patch.cobradoFecha;
+      if (patch.cobroPago !== undefined) dbPatch.cobro_pago = patch.cobroPago;
       const { data: actualizados, error } = await supabase.from('cortes').update(dbPatch).eq('id', id).select('id');
       if (error) throw error;
       // Si la RLS no deja modificarlo, Supabase no da error: simplemente no actualiza filas.
@@ -480,11 +500,35 @@ export function AppProvider({ children }) {
         p_notas: venta.notas || '',
         p_fecha: venta.fecha,
         p_hora: venta.hora,
+        p_monto_efectivo: venta.montoEfectivo ?? null,
+        p_monto_transferencia: venta.montoTransferencia ?? null,
+        p_cliente_nombre: venta.clienteNombre || null,
       });
       if (error) throw error;
       await refetch();
     },
     [assertSalon, refetch]
+  );
+
+  // Registra el cobro de un corte o venta que quedó "a cobrar": guarda el día y cómo se pagó.
+  const registrarCobro = useCallback(
+    async (tipo, id, { cobroPago, montoEfectivo, montoTransferencia }) => {
+      const tabla = tipo === 'venta' ? 'ventas' : 'cortes';
+      const { data: filas, error } = await supabase
+        .from(tabla)
+        .update({
+          cobrado_fecha: toDateKey(new Date()),
+          cobro_pago: cobroPago,
+          monto_efectivo: montoEfectivo,
+          monto_transferencia: montoTransferencia,
+        })
+        .eq('id', id)
+        .select('id');
+      if (error) throw error;
+      if (!filas?.length) throw new Error('No tenés permiso para registrar este cobro.');
+      await refetch();
+    },
+    [refetch]
   );
 
   const deleteVenta = useCallback(
@@ -745,6 +789,7 @@ export function AppProvider({ children }) {
       ajustarStock,
       addVenta,
       deleteVenta,
+      registrarCobro,
       addLocal,
       updateLocal,
       deleteLocal,
@@ -779,6 +824,7 @@ export function AppProvider({ children }) {
       ajustarStock,
       addVenta,
       deleteVenta,
+      registrarCobro,
       addLocal,
       updateLocal,
       deleteLocal,

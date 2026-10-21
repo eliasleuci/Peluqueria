@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Pencil } from 'lucide-react';
-import Badge from './Badge';
 import EditarCorteModal from './EditarCorteModal';
 import Avatar from './Avatar';
 import { formatCurrency, formatDate, toDateKey } from '../utils/format';
 import { computeMetrics, rankServicios, comisionDeCortes } from '../utils/stats';
+import PagoBadge from './PagoBadge';
 
 // cortes: los cortes del peluquero ya filtrados por el período elegido.
 export default function PeluqueroResumen({ peluquero, cortes, servicios }) {
@@ -111,6 +111,8 @@ export default function PeluqueroResumen({ peluquero, cortes, servicios }) {
               <option value="">Todo pago</option>
               <option value="efectivo">Efectivo</option>
               <option value="transferencia">Transferencia</option>
+              <option value="mixto">Mixto</option>
+              <option value="a_cobrar">A cobrar</option>
             </select>
           </div>
         )}
@@ -156,9 +158,7 @@ export default function PeluqueroResumen({ peluquero, cortes, servicios }) {
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <div style={{ fontWeight: 700 }}>{formatCurrency(c.monto)}</div>
-                      <Badge color={c.pago === 'efectivo' ? 'green' : 'blue'}>
-                        {c.pago === 'efectivo' ? 'Efectivo' : 'Transferencia'}
-                      </Badge>
+                      <PagoBadge item={c} conCliente />
                     </div>
                     <Pencil size={16} className="corte-editable-icon" aria-hidden="true" />
                   </div>

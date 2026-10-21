@@ -3,6 +3,8 @@ import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { toDateKey, nowTimeKey, formatCurrency } from '../utils/format';
+import PagoSelector from '../components/PagoSelector';
+import { pagoInicial, validarPago, camposPago } from '../utils/pagos';
 
 function emptyForm(peluqueroId) {
   return {
@@ -11,7 +13,6 @@ function emptyForm(peluqueroId) {
     productoId: '',
     cantidad: 1,
     precio: '',
-    pago: 'efectivo',
   };
 }
 
@@ -24,6 +25,7 @@ export default function RegistrarVenta() {
 
   const [form, setForm] = useState(() => emptyForm(miPeluqueroId));
   const [errors, setErrors] = useState({});
+  const [pagoEstado, setPagoEstado] = useState(pagoInicial);
   const [guardando, setGuardando] = useState(false);
   // Ref además del estado: bloquea un doble toque antes de que React vuelva a renderizar.
   const enviandoRef = useRef(false);
@@ -70,7 +72,13 @@ export default function RegistrarVenta() {
     if (precio <= 0) e.precio = true;
     if (producto && cantidad > producto.stock) e.stock = true;
     setErrors(e);
-    return Object.keys(e).length === 0;
+    if (Object.keys(e).length) return false;
+    const errorPago = validarPago(pagoEstado, monto);
+    if (errorPago) {
+      showToast(errorPago, 'error');
+      return false;
+    }
+    return true;
   }
 
   async function handleSubmit(ev) {
@@ -87,13 +95,14 @@ export default function RegistrarVenta() {
         precio,
         monto,
         comisionMonto,
-        pago: form.pago,
+        ...camposPago(pagoEstado, monto),
         fecha: form.fecha,
         hora: nowTimeKey(),
         notas: '',
       });
       showToast(`✓ Venta registrada — ${formatCurrency(monto)}`);
       setForm(emptyForm(esPeluquero ? miPeluqueroId : form.peluqueroId));
+      setPagoEstado(pagoInicial());
     } catch (err) {
       showToast(`Error al guardar: ${err.message ?? err}`, 'error');
     } finally {
@@ -182,25 +191,7 @@ export default function RegistrarVenta() {
           </div>
         </div>
 
-        <div className="field">
-          <label>Forma de pago</label>
-          <div className="toggle-group">
-            <button
-              type="button"
-              className={`toggle-btn ${form.pago === 'efectivo' ? 'active' : ''}`}
-              onClick={() => update({ pago: 'efectivo' })}
-            >
-              💵 Efectivo
-            </button>
-            <button
-              type="button"
-              className={`toggle-btn ${form.pago === 'transferencia' ? 'active' : ''}`}
-              onClick={() => update({ pago: 'transferencia' })}
-            >
-              📲 Transferencia
-            </button>
-          </div>
-        </div>
+        <PagoSelector value={pagoEstado} onChange={setPagoEstado} monto={monto} />
 
         {comisionMonto > 0 && (
           <div className="flex-between hint">

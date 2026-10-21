@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import MetricCard from '../components/MetricCard';
 import Avatar from '../components/Avatar';
-import Badge from '../components/Badge';
 import PeriodSelector from '../components/PeriodSelector';
 import LocalDrawer from '../components/LocalDrawer';
 import { formatCurrency, formatDate, toDateKey } from '../utils/format';
@@ -16,6 +15,9 @@ import {
   rankServicios,
   pctChange,
 } from '../utils/stats';
+import PagoBadge from '../components/PagoBadge';
+import CobrarModal from '../components/CobrarModal';
+import { estaPendiente } from '../utils/pagos';
 
 export default function Dashboard() {
   const { data, activeLocal } = useApp();
@@ -24,6 +26,27 @@ export default function Dashboard() {
   const hoy = toDateKey(new Date());
   const [periodo, setPeriodo] = useState({ period: 'mes', custom: { from: hoy, to: hoy } });
   const [drawer, setDrawer] = useState(null); // { localId } | { peluqueroId }
+  const [cobrando, setCobrando] = useState(null); // { item, tipo, descripcion }
+
+  // Cuentas "a cobrar" pendientes (cortes y ventas, de cualquier fecha) del local elegido.
+  const pendientes = useMemo(() => {
+    const servicioName = (id) => servicios.find((x) => x.id === id)?.nombre ?? 'Servicio';
+    const productoName = (id) => data.productos.find((x) => x.id === id)?.nombre ?? 'Producto';
+    const nombre = (id) => peluqueros.find((x) => x.id === id)?.nombre ?? '—';
+    const deCortes = filterByLocal(cortes, activeLocal)
+      .filter(estaPendiente)
+      .map((c) => ({ item: c, tipo: 'corte', descripcion: servicioName(c.servicioId), peluquero: nombre(c.peluqueroId) }));
+    const deVentas = filterByLocal(data.ventas, activeLocal)
+      .filter(estaPendiente)
+      .map((v) => ({
+        item: v,
+        tipo: 'venta',
+        descripcion: `${productoName(v.productoId)}${v.cantidad > 1 ? ` ×${v.cantidad}` : ''}`,
+        peluquero: nombre(v.peluqueroId),
+      }));
+    return [...deCortes, ...deVentas].sort((a, b) => (a.item.fecha + a.item.hora).localeCompare(b.item.fecha + b.item.hora));
+  }, [cortes, data.ventas, data.productos, servicios, peluqueros, activeLocal]);
+  const totalPendiente = pendientes.reduce((a, p) => a + (Number(p.item.monto) || 0), 0);
 
   const { period, custom } = periodo;
 
@@ -105,8 +128,39 @@ export default function Dashboard() {
           value={formatCurrency(m.transferencia)}
           subtitle={`${m.transferenciaPct.toFixed(0)}% del total`}
         />
-        <MetricCard label="Descuentos" value={formatCurrency(m.descuentos)} />
+        <MetricCard
+          label="A cobrar"
+          value={formatCurrency(totalPendiente)}
+          subtitle={pendientes.length ? `${pendientes.length} pendiente${pendientes.length === 1 ? '' : 's'}` : 'Nada pendiente'}
+        />
       </div>
+
+      {pendientes.length > 0 && (
+        <div className="card">
+          <div className="flex-between" style={{ marginBottom: 12, gap: 8, flexWrap: 'wrap' }}>
+            <div className="card-title" style={{ marginBottom: 0 }}>
+              Cuentas a cobrar
+            </div>
+            <span className="hint">Total {formatCurrency(totalPendiente)}</span>
+          </div>
+          <div className="stack-gap historial-scroll" style={{ gap: 8, maxHeight: 360 }}>
+            {pendientes.map((p) => (
+              <div className="list-item-card" key={`${p.tipo}-${p.item.id}`} style={{ padding: '12px 14px' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600 }}>{p.item.clienteNombre || 'Sin nombre'}</div>
+                  <div className="hint">
+                    {formatDate(p.item.fecha)} · {p.descripcion} · {p.peluquero}
+                  </div>
+                </div>
+                <div style={{ fontWeight: 700 }}>{formatCurrency(p.item.monto)}</div>
+                <button className="btn btn-primary btn-sm" onClick={() => setCobrando(p)}>
+                  Cobrar
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-2">
         <div className="card">
@@ -157,9 +211,7 @@ export default function Dashboard() {
                     <td data-label="Peluquero">{peluqueroName(c.peluqueroId)}</td>
                     <td data-label="Servicio">{servicios.find((s) => s.id === c.servicioId)?.nombre ?? '—'}</td>
                     <td data-label="Pago">
-                      <Badge color={c.pago === 'efectivo' ? 'green' : 'blue'}>
-                        {c.pago === 'efectivo' ? 'Efectivo' : 'Transferencia'}
-                      </Badge>
+                      <PagoBadge item={c} conCliente />
                     </td>
                     <td data-label="Monto">{formatCurrency(c.monto)}</td>
                   </tr>
@@ -258,6 +310,15 @@ export default function Dashboard() {
             })}
           </div>
         </div>
+      )}
+
+      {cobrando && (
+        <CobrarModal
+          item={cobrando.item}
+          tipo={cobrando.tipo}
+          descripcion={cobrando.descripcion}
+          onClose={() => setCobrando(null)}
+        />
       )}
 
       {drawer && (

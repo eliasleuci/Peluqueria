@@ -7,6 +7,7 @@ import Badge from '../components/Badge';
 import PeriodSelector from '../components/PeriodSelector';
 import { formatCurrency, formatDate, toDateKey } from '../utils/format';
 import { filterByLocal, filterByRange, periodRange } from '../utils/stats';
+import PagoBadge from '../components/PagoBadge';
 
 const TABS = [
   { key: 'inventario', label: 'Inventario', icon: Package },
@@ -543,9 +544,7 @@ function VentasTab() {
                   <td data-label="Cant.">{v.cantidad}</td>
                   <td data-label="Monto">{formatCurrency(v.monto)}</td>
                   <td data-label="Pago">
-                    <Badge color={v.pago === 'efectivo' ? 'green' : 'blue'}>
-                      {v.pago === 'efectivo' ? 'Efectivo' : 'Transferencia'}
-                    </Badge>
+                    <PagoBadge item={v} conCliente />
                   </td>
                   <td data-label="Acciones">
                     <button className="btn btn-danger btn-sm" onClick={() => setToDelete(v)}>

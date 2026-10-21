@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import Modal from './Modal';
+import PagoSelector from './PagoSelector';
+import CobrarModal from './CobrarModal';
+import { pagoInicial, validarPago, camposPago, estaPendiente } from '../utils/pagos';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -19,10 +22,12 @@ export default function EditarCorteModal({ corte, onClose }) {
     peluqueroId: corte.peluqueroId,
     servicioId: corte.servicioId,
     precio: corte.monto,
-    pago: corte.pago,
     fecha: corte.fecha,
     hora: corte.hora,
   });
+  const pagoOriginal = pagoInicial(corte);
+  const [pagoEstado, setPagoEstado] = useState(pagoOriginal);
+  const [cobrando, setCobrando] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [usarPctVigente, setUsarPctVigente] = useState(false);
   const [confirmarBorrado, setConfirmarBorrado] = useState(false);
@@ -48,6 +53,16 @@ export default function EditarCorteModal({ corte, onClose }) {
   }
 
   async function guardar() {
+    // Solo se reescribe el pago si se tocó (así no se pisa un cobro ya registrado).
+    const pagoCambio =
+      JSON.stringify(pagoEstado) !== JSON.stringify(pagoOriginal) || precio !== (Number(corte.monto) || 0);
+    if (pagoCambio) {
+      const errorPago = validarPago(pagoEstado, precio);
+      if (errorPago) {
+        showToast(errorPago, 'error');
+        return;
+      }
+    }
     if (!form.servicioId || precio <= 0 || !form.fecha || !form.hora) {
       showToast('Completá servicio, precio, fecha y hora.', 'error');
       return;
@@ -59,10 +74,10 @@ export default function EditarCorteModal({ corte, onClose }) {
         precio,
         descuento: 0,
         monto: precio,
-        pago: form.pago,
         fecha: form.fecha,
         hora: form.hora,
       };
+      if (pagoCambio) Object.assign(patch, camposPago(pagoEstado, precio));
       if (usarPctVigente && !cambioServicioOPeluquero) patch.comisionPct = pctVigente;
       if (esDueno && form.peluqueroId !== corte.peluqueroId) {
         patch.peluqueroId = form.peluqueroId;
@@ -88,6 +103,17 @@ export default function EditarCorteModal({ corte, onClose }) {
       showToast(`Error: ${err.message ?? err}`, 'error');
       setGuardando(false);
     }
+  }
+
+  if (cobrando) {
+    return (
+      <CobrarModal
+        item={corte}
+        tipo="corte"
+        descripcion={data.servicios.find((x) => x.id === corte.servicioId)?.nombre ?? 'un servicio'}
+        onClose={onClose}
+      />
+    );
   }
 
   if (confirmarBorrado) {
@@ -170,25 +196,15 @@ export default function EditarCorteModal({ corte, onClose }) {
           <input type="number" min="0" value={form.precio} onChange={(e) => update({ precio: e.target.value })} />
         </div>
 
-        <div className="field">
-          <label>Forma de pago</label>
-          <div className="toggle-group">
-            <button
-              type="button"
-              className={`toggle-btn ${form.pago === 'efectivo' ? 'active' : ''}`}
-              onClick={() => update({ pago: 'efectivo' })}
-            >
-              Efectivo
-            </button>
-            <button
-              type="button"
-              className={`toggle-btn ${form.pago === 'transferencia' ? 'active' : ''}`}
-              onClick={() => update({ pago: 'transferencia' })}
-            >
-              Transferencia
-            </button>
-          </div>
-        </div>
+        <PagoSelector value={pagoEstado} onChange={setPagoEstado} monto={precio} />
+        {estaPendiente(corte) && pagoEstado.pago === 'a_cobrar' && (
+          <button type="button" className="btn btn-secondary" onClick={() => setCobrando(true)}>
+            El cliente ya pagó: registrar cobro
+          </button>
+        )}
+        {corte.pago === 'a_cobrar' && corte.cobradoFecha && (
+          <p className="hint">Cobrado el {formatDate(corte.cobradoFecha)}.</p>
+        )}
 
         <div className="card" style={{ background: 'var(--surface-elevated)', padding: 14 }}>
           <div className="flex-between" style={{ gap: 8 }}>

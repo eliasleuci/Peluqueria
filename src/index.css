@@ -1125,3 +1125,21 @@ input[readonly] {
     padding: 14px;
   }
 }
+
+/* --- Selector de forma de pago --- */
+.pago-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.pago-grid .toggle-btn {
+  padding: 11px 6px;
+  font-size: 13.5px;
+}
+
+@media (max-width: 640px) {
+  .pago-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
