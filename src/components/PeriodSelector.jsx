@@ -1,3 +1,6 @@
+import { useHistorial } from '../context/AppContext';
+import { periodRange } from '../utils/stats';
+
 const OPCIONES = [
   { key: 'hoy', label: 'Hoy' },
   { key: 'semana', label: 'Semana' },
@@ -6,6 +9,10 @@ const OPCIONES = [
 ];
 
 export default function PeriodSelector({ period, custom, onChange }) {
+  // La app carga por defecto solo el historial reciente. Si el período elegido (o el
+  // anterior, con el que se compara) empieza antes, pedimos esos datos.
+  const cargandoHistorial = useHistorial(periodRange(period, -1, custom).from);
+
   function setPeriod(key) {
     onChange({ period: key, custom });
   }
@@ -49,6 +56,7 @@ export default function PeriodSelector({ period, custom, onChange }) {
           </label>
         </div>
       )}
+      {cargandoHistorial && <span className="hint">Cargando historial…</span>}
     </div>
   );
 }

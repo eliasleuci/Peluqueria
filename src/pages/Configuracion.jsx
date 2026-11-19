@@ -634,13 +634,25 @@ function csvEscape(value) {
 }
 
 function DatosTab() {
-  const { data, limpiarDemo } = useApp();
+  const { data, limpiarDemo, cargarTodosLosCortes } = useApp();
   const { showToast } = useToast();
   const [confirmClear, setConfirmClear] = useState(false);
   const [reporteLocal, setReporteLocal] = useState('all');
+  const [exportando, setExportando] = useState(false);
 
-  function exportarReporte() {
-    const cortes = filterByLocal(data.cortes, reporteLocal);
+  async function exportarReporte() {
+    // La app tiene cargado solo el historial reciente; el reporte va completo.
+    setExportando(true);
+    let todos;
+    try {
+      todos = await cargarTodosLosCortes();
+    } catch (err) {
+      showToast(`Error al exportar: ${err.message ?? err}`, 'error');
+      return;
+    } finally {
+      setExportando(false);
+    }
+    const cortes = filterByLocal(todos, reporteLocal);
     const localName = (id) => data.locales.find((l) => l.id === id)?.nombre ?? '—';
     const peluqueroName = (id) => data.peluqueros.find((p) => p.id === id)?.nombre ?? '—';
     const servicioName = (id) => data.servicios.find((s) => s.id === id)?.nombre ?? '—';
@@ -730,8 +742,8 @@ function DatosTab() {
             ))}
           </select>
         </div>
-        <button className="btn btn-primary" onClick={exportarReporte}>
-          Exportar reporte
+        <button className="btn btn-primary" onClick={exportarReporte} disabled={exportando}>
+          {exportando ? 'Exportando…' : 'Exportar reporte'}
         </button>
       </div>
 

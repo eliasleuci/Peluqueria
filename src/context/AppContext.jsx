@@ -134,7 +134,55 @@ const mapCorte = (r) => ({
   cobroPago: r.cobro_pago ?? null,
 });
 
-async function fetchAll(salonId) {
+// Supabase (PostgREST) devuelve como máximo 1000 filas por consulta y corta el resto
+// sin avisar. Las tablas que crecen todos los días se piden página por página.
+const PAGE_SIZE = 1000;
+
+// buildQuery() arma la consulta (filtros y orden); acá se le agrega el desempate por id
+// para que el orden sea estable y las páginas no se pisen ni salteen filas.
+async function selectAll(buildQuery) {
+  const rows = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await buildQuery()
+      .order('id', { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
+    if (error) return { data: null, error };
+    rows.push(...data);
+    if (data.length < PAGE_SIZE) return { data: rows, error: null };
+  }
+}
+
+// Ventana de historial que se carga por defecto: desde el 1° del mes anterior.
+// Cubre "Hoy", "Semana" y "Mes" con su comparación contra el período anterior.
+// Un salón con mucho movimiento junta miles de cortes por año, y no tiene sentido
+// bajarlos todos en cada guardado: lo más viejo se pide solo cuando alguien elige
+// un período personalizado anterior (ver useHistorial).
+function inicioVentanaPorDefecto() {
+  const hoy = new Date();
+  return toDateKey(new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1));
+}
+
+// Movimientos (cortes o ventas) desde `desde`, más los "a cobrar" pendientes de cualquier
+// fecha: la lista de cuentas pendientes del panel tiene que mostrarlos aunque sean viejos.
+async function selectMovimientos(table, salonId, desde) {
+  const [recientes, pendientesViejos] = await Promise.all([
+    selectAll(() => supabase.from(table).select('*').eq('salon_id', salonId).gte('fecha', desde)),
+    selectAll(() =>
+      supabase
+        .from(table)
+        .select('*')
+        .eq('salon_id', salonId)
+        .lt('fecha', desde)
+        .eq('pago', 'a_cobrar')
+        .is('cobrado_fecha', null)
+    ),
+  ]);
+  const error = recientes.error ?? pendientesViejos.error;
+  if (error) return { data: null, error };
+  return { data: [...pendientesViejos.data, ...recientes.data], error: null };
+}
+
+async function fetchAll(salonId, desde) {
   const [
     locales,
     servicios,
@@ -152,10 +200,18 @@ async function fetchAll(salonId) {
     supabase.from('servicio_precios').select('*').eq('salon_id', salonId),
     supabase.from('peluqueros').select('*').eq('salon_id', salonId).order('nombre'),
     supabase.from('productos').select('*').eq('salon_id', salonId).order('nombre'),
-    supabase.from('cortes').select('*').eq('salon_id', salonId),
-    supabase.from('ventas').select('*').eq('salon_id', salonId),
-    supabase.from('asistencias').select('*').eq('salon_id', salonId),
-    supabase.from('notificaciones').select('*').eq('salon_id', salonId).order('created_at', { ascending: false }),
+    selectMovimientos('cortes', salonId, desde),
+    selectMovimientos('ventas', salonId, desde),
+    selectAll(() => supabase.from('asistencias').select('*').eq('salon_id', salonId).gte('fecha', desde)),
+    // Las no leídas siempre (son avisos pendientes); las leídas, solo dentro de la ventana.
+    selectAll(() =>
+      supabase
+        .from('notificaciones')
+        .select('*')
+        .eq('salon_id', salonId)
+        .or(`leida.eq.false,created_at.gte.${desde}`)
+        .order('created_at', { ascending: false })
+    ),
     supabase.from('salon_config').select('*').eq('salon_id', salonId).maybeSingle(),
   ]);
 
@@ -205,32 +261,63 @@ export function AppProvider({ children }) {
   // Los refetch() disparados por cada guardado son silenciosos: si no, cada alta/edición
   // desmontaría la página entera (perdiendo el modal/drawer abierto) mientras vuelve a pedir los datos.
   const loadedSalonRef = useRef(null);
+  // Desde qué fecha se piden cortes/ventas/asistencias. Solo se agranda hacia atrás.
+  const desdeRef = useRef(inicioVentanaPorDefecto());
+  // Desde qué fecha están efectivamente cargados en `data` (para mostrar "Cargando…").
+  const [historialDesde, setHistorialDesde] = useState(null);
+  // Si dos refetch se pisan (realtime + guardado + cambio de período), gana el último pedido.
+  const requestIdRef = useRef(0);
 
   const refetch = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
     if (!salonId) {
       setData(EMPTY_DATA);
       setLoading(false);
       loadedSalonRef.current = null;
       return;
     }
+    const desde = desdeRef.current;
     const isFirstLoadForThisSalon = loadedSalonRef.current !== salonId;
     if (isFirstLoadForThisSalon) setLoading(true);
     try {
-      const fresh = await fetchAll(salonId);
+      const fresh = await fetchAll(salonId, desde);
+      if (requestId !== requestIdRef.current) return;
       setData(fresh);
+      setHistorialDesde(desde);
       setDataError(null);
       loadedSalonRef.current = salonId;
     } catch (err) {
+      if (requestId !== requestIdRef.current) return;
       setDataError(err.message ?? String(err));
     } finally {
-      if (isFirstLoadForThisSalon) setLoading(false);
+      if (isFirstLoadForThisSalon && requestId === requestIdRef.current) setLoading(false);
     }
   }, [salonId]);
 
   useEffect(() => {
     setActiveLocal('all');
+    desdeRef.current = inicioVentanaPorDefecto();
+    setHistorialDesde(null);
     refetch();
   }, [refetch]);
+
+  // Amplía la ventana hacia atrás cuando una pantalla necesita datos más viejos.
+  const pedirHistorialDesde = useCallback(
+    (fecha) => {
+      if (!fecha || fecha >= desdeRef.current) return;
+      desdeRef.current = fecha;
+      refetch();
+    },
+    [refetch]
+  );
+
+  // Todos los cortes del salón, sin ventana (para exportar el reporte completo).
+  const cargarTodosLosCortes = useCallback(async () => {
+    if (!salonId) return [];
+    const { data: rows, error } = await selectAll(() => supabase.from('cortes').select('*').eq('salon_id', salonId));
+    if (error) throw error;
+    return rows.map(mapCorte);
+  }, [salonId]);
 
   // Realtime: cuando otro usuario (p. ej. un peluquero registrando un corte) cambia algo
   // en el salón, refrescamos los datos solos, sin que el dueño tenga que recargar la página.
@@ -633,6 +720,11 @@ export function AppProvider({ children }) {
       // Borrado físico. La FK de cortes.servicio_id (sin ON DELETE) hace que la base
       // rechace el borrado si el servicio tiene cortes, protegiendo el historial.
       const { error } = await supabase.from('servicios').delete().eq('id', id);
+      // La pantalla solo ve los cortes recientes; si el servicio tiene cortes viejos, la FK
+      // lo frena acá (23503 = foreign_key_violation) y mostramos el mismo aviso que la UI.
+      if (error?.code === '23503') {
+        throw new Error('No se puede eliminar: tiene cortes registrados. Desactivalo en su lugar.');
+      }
       if (error) throw error;
       await refetch();
     },
@@ -803,6 +895,9 @@ export function AppProvider({ children }) {
       deleteAsistencia,
       updateConfig,
       limpiarDemo,
+      historialDesde,
+      pedirHistorialDesde,
+      cargarTodosLosCortes,
     }),
     [
       data,
@@ -838,6 +933,9 @@ export function AppProvider({ children }) {
       deleteAsistencia,
       updateConfig,
       limpiarDemo,
+      historialDesde,
+      pedirHistorialDesde,
+      cargarTodosLosCortes,
     ]
   );
 
@@ -848,4 +946,14 @@ export function useApp() {
   const ctx = useContext(AppContext);
   if (!ctx) throw new Error('useApp debe usarse dentro de AppProvider');
   return ctx;
+}
+
+// Para pantallas con selector de período: asegura que estén cargados los datos desde
+// `fecha` (pide el historial más viejo si hace falta) y devuelve true mientras llegan.
+export function useHistorial(fecha) {
+  const { historialDesde, pedirHistorialDesde } = useApp();
+  useEffect(() => {
+    pedirHistorialDesde(fecha);
+  }, [fecha, pedirHistorialDesde]);
+  return Boolean(fecha && historialDesde && fecha < historialDesde);
 }
